@@ -1,5 +1,5 @@
 --[[
-    NIXON: RLD (BETA) — UI do RayBeats Ultra, tema Dark Red
+    WTRALD v.1.4 — UI do RayBeats Ultra, tema Dark Red
     Abas: Doors | ESP | Tracker | Items | Player | Modes
     UI original: Fyan / FynLabs (RayBeats Ultra) — sem biblioteca externa.
     Abrir/fechar: botão 🚪 ou tecla R.
@@ -15,8 +15,8 @@ local CoreGui          = game:GetService("CoreGui")
 
 local LocalPlayer = Players.LocalPlayer
 
-local GUI_NAME = "nixon_rld_ui"
-local SCRIPT_NAME = "NIXON: RLD"
+local GUI_NAME = "wtrald_ui"
+local SCRIPT_NAME = "WTRALD v.1.4"
 
 ----------------------------------------------------------------------
 -- CONFIG
@@ -30,7 +30,7 @@ local ESP_BLACKLIST = {}
 for _, n in ipairs({
     "B-300Baby", "B300Explosion", "ABC", "ABA", "BBB", "M-222", "AMON", "AMON2",
     "M-120-B", "CMOB1", "CMOB2", "CMOB3", "XH1", "ZH2",
-    "MOB1", "MOB2",
+    "MOB1", "MOB2", "SN-1",
 }) do
     ESP_BLACKLIST[string.lower(n)] = true
 end
@@ -44,7 +44,7 @@ end
 local ALERT_IGNORE = {}
 for _, n in ipairs({
     "Happyman", "Joyfulman", "Nerdman", "Mournfulman", "Shortman", "Tallman",
-    "Angryman", "Sadman", "SB-1", "1-A", "1-B", "1-G", "A-1", "CB-1", "Glee", "A-120", "Hardcore-120", "AMON", "AMON2",
+    "Angryman", "Sadman", "Bigman", "SB-1", "1-A", "1-B", "1-G", "A-1", "CB-1", "Glee", "A-120", "Hardcore-120", "AMON", "AMON2",
     "A-120 (V)", "A-120 (B)", "A-120 (G)", "A-120 (U)",
     "C-1", "B-1", "G-1", "B-15", "G-3",
     "Widowed Sleeper", "SP-1",
@@ -77,6 +77,27 @@ local function isSpecIgnored(name)
     return flat == "1a" or flat == "1b" or flat == "1g" or flat == "mob1" or flat == "mob2"
 end
 
+-- Variantes de alerta (texto depois do nome da entidade)
+local ALERT_TIME = 2.5
+local ALERT_VARIANT = {}
+local function regVariant(list, text)
+    for _, n in ipairs(list) do ALERT_VARIANT[normalizeName(n)] = text end
+end
+
+-- Variante 1: mesa
+regVariant({
+    "A-105", "C-105", "A-100", "X-100", "A-320", "B-170", "B-40", "G-55", "CG-55", "G-150",
+    "G-122", "Cate-40", "Noonir-40", "Omg-40", "G-10", "CG-10", "T-110", "GodHasForsaken",
+}, " spawned, hide in a table! (table must be color of lightwood)")
+
+-- Variante 2: locker cinza ou azul
+regVariant({
+    "A-200", "B-120", "CV-300", "FO-300", "G-140", "MY_INNER_SKIN",
+}, " spawned, hide on a grey locker (must be color RGB(163, 162, 165)) or blue locker! (must be RGB(13, 105, 172))")
+
+-- A-185: aviso unico
+regVariant({ "A-185" }, " spawned, hide on a GREY locker or a table!")
+
 -- Tema Dark Red (nomes mantidos para a logica)
 local Theme = {
     bg      = Color3.fromRGB(10, 8, 9),
@@ -101,6 +122,7 @@ local Theme = {
 -- CLEANUP DE EXECUCOES ANTERIORES
 ----------------------------------------------------------------------
 
+local OLD_NAMES = { GUI_NAME, "nixon_rld_ui", "wtrald_ui_beta" }
 for _, getParent in ipairs({
     function() return (gethui and gethui()) or CoreGui end,
     function() return LocalPlayer:FindFirstChildOfClass("PlayerGui") end,
@@ -108,7 +130,9 @@ for _, getParent in ipairs({
     pcall(function()
         local parent = getParent()
         for _, c in ipairs(parent:GetChildren()) do
-            if c.Name == GUI_NAME or c.Name == GUI_NAME .. "_ESP" or c.Name == "wtrald_ui_beta" or c.Name == "wtrald_ui_beta_ESP" then c:Destroy() end
+            for _, old in ipairs(OLD_NAMES) do
+                if c.Name == old or c.Name == old .. "_ESP" then c:Destroy() break end
+            end
         end
     end)
 end
@@ -213,7 +237,7 @@ mount(ESPFolder)
 
 local win = create("Frame", {
     Name = "Window", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
-    Size = UDim2.fromOffset(600, 380), BackgroundColor3 = WHITE, BorderSizePixel = 0, Active = true,
+    Size = UDim2.fromOffset(480, 330), BackgroundColor3 = WHITE, BorderSizePixel = 0, Active = true,
     Parent = ScreenGui,
 }, {
     corner(20),
@@ -228,7 +252,7 @@ local function fitScale()
     local cam = Workspace.CurrentCamera
     if not cam then return 1 end
     local v = cam.ViewportSize
-    return math.clamp(math.min(v.X / 660, v.Y / 430), 0.5, 1.15)
+    return math.clamp(math.min(v.X / 530, v.Y / 380), 0.5, 1.15)
 end
 uiScale.Scale = fitScale()
 if Workspace.CurrentCamera then
@@ -236,14 +260,10 @@ if Workspace.CurrentCamera then
 end
 
 local top = create("Frame", { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 44), Parent = win })
-local logo = label({
-    Text = "NIXON: RLD", Font = FONT_BLACK, TextSize = 20, TextColor3 = WHITE,
-    Position = UDim2.new(0, 16, 0, 0), Size = UDim2.new(0, 130, 1, 0), Parent = top,
+label({
+    Text = SCRIPT_NAME, Font = FONT_BLACK, TextSize = 18, TextColor3 = WHITE,
+    Position = UDim2.new(0, 16, 0, 0), Size = UDim2.new(0, 160, 1, 0), Parent = top,
 })
-create("TextLabel", {
-    BackgroundColor3 = Theme.accent, Text = "BETA", Font = FONT_BOLD, TextSize = 10, TextColor3 = WHITE,
-    Position = UDim2.new(0, 152, 0.5, -9), Size = UDim2.fromOffset(40, 18), BorderSizePixel = 0, Parent = top,
-}, { corner(9) })
 
 local function topBtn(txt, x, cb)
     local b = create("TextButton", {
@@ -297,11 +317,11 @@ bind(UserInputService.InputBegan, function(i, gp)
 end)
 
 local side = create("Frame", {
-    BackgroundTransparency = 1, Position = UDim2.new(0, 10, 0, 48), Size = UDim2.new(0, 128, 1, -58), Parent = win,
+    BackgroundTransparency = 1, Position = UDim2.new(0, 10, 0, 48), Size = UDim2.new(0, 104, 1, -58), Parent = win,
 }, { create("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }) })
 
 local content = create("Frame", {
-    BackgroundTransparency = 1, Position = UDim2.new(0, 146, 0, 48), Size = UDim2.new(1, -156, 1, -58),
+    BackgroundTransparency = 1, Position = UDim2.new(0, 122, 0, 48), Size = UDim2.new(1, -132, 1, -58),
     ClipsDescendants = true, Parent = win,
 })
 
@@ -338,10 +358,10 @@ for i, name in ipairs(TAB_NAMES) do
     })
     pages[name] = page
     local b = create("TextButton", {
-        Text = TAB_ICONS[name] .. "  " .. name, Font = FONT_BOLD, TextSize = 12, TextColor3 = Theme.sub,
+        Text = TAB_ICONS[name] .. " " .. name, Font = FONT_BOLD, TextSize = 12, TextColor3 = Theme.sub,
         BackgroundColor3 = Theme.card, AutoButtonColor = false, Size = UDim2.new(1, 0, 0, 34), BorderSizePixel = 0,
         LayoutOrder = i, TextXAlignment = Enum.TextXAlignment.Left, Parent = side,
-    }, { corner(10), stroke(Theme.stroke, 1, 0.5), create("UIPadding", { PaddingLeft = UDim.new(0, 12) }) })
+    }, { corner(10), stroke(Theme.stroke, 1, 0.5), create("UIPadding", { PaddingLeft = UDim.new(0, 10) }) })
     tabBtns[name] = { b = b }
     b.MouseButton1Click:Connect(function() selectTab(name) end)
 end
@@ -615,12 +635,12 @@ local function makeInput(page, title, placeholder, onSubmit)
 end
 
 ----------------------------------------------------------------------
--- UI: NOTIFICACOES (toasts)
+-- UI: NOTIFICACOES (toasts) — topo central
 ----------------------------------------------------------------------
 
 local ToastHolder = create("Frame", {
-    Name = "Toasts", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 12),
-    Size = UDim2.fromOffset(math.clamp(vp.X - 90, 230, 300), 0), AutomaticSize = Enum.AutomaticSize.Y,
+    Name = "Toasts", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 12),
+    Size = UDim2.fromOffset(math.clamp(vp.X - 90, 230, 320), 0), AutomaticSize = Enum.AutomaticSize.Y,
     BackgroundTransparency = 1, Parent = ScreenGui,
 }, {
     create("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }),
@@ -668,7 +688,7 @@ local function notify(text, color, duration, glyph)
     local card = create("CanvasGroup", {
         Size = UDim2.new(1, 0, 0, TOAST_H), BackgroundColor3 = Theme.header, GroupTransparency = 1, Parent = wrap,
     }, { corner(12), stroke(color, 1.5, 0.35) })
-    local badge = create("TextLabel", {
+    create("TextLabel", {
         Text = glyph, TextSize = 14, Font = FONT_BLACK, TextColor3 = color, BackgroundColor3 = color,
         BackgroundTransparency = 0.84, Size = UDim2.fromOffset(26, 26), Position = UDim2.fromOffset(10, 11),
         BorderSizePixel = 0, Parent = card,
@@ -776,10 +796,10 @@ function Dialog.show(opts)
     ConfirmBtn.BackgroundColor3 = Dialog.base
     ConfirmBtn.TextColor3 = opts.confirmFg or Theme.accentText
     CancelBtn.Text = opts.cancelText or "Cancel"
-DialogOverlay.Active = true
-DialogOverlay.BackgroundTransparency = 1
-DialogCard.GroupTransparency = 1
-DialogOverlay.Visible = true
+    DialogOverlay.Active = true
+    DialogOverlay.BackgroundTransparency = 1
+    DialogCard.GroupTransparency = 1
+    DialogOverlay.Visible = true
     tween(DialogOverlay, 0.2, { BackgroundTransparency = 0.45 })
     DialogCard.Position = UDim2.new(0.5, 0, 0.5, 16)
     tween(DialogCard, 0.3, { GroupTransparency = 0, Position = UDim2.fromScale(0.5, 0.5) }, Enum.EasingStyle.Back)
@@ -1187,22 +1207,53 @@ NextBtn.Activated:Connect(function() specStep(1) end)
 CloseBtn.Activated:Connect(specClose)
 
 ----------------------------------------------------------------------
--- LOGICA: ALERTA DE ENTIDADES
+-- LOGICA: ALERTA DE ENTIDADES (variantes)
 ----------------------------------------------------------------------
 
 local AlertOn = false
 local TrackerEvents = { spawned = "—", despawned = "—" }
 
+local function alertNotify(entity, suffix)
+    local c = entityColor(entity)
+    notify("<b>" .. richName(entity.Name, c) .. "</b>" .. suffix,
+        isDark(c) and Color3.new(1, 1, 1) or c, ALERT_TIME, "!")
+end
+
+-- G-100: avisos pelos sons Moving.Spawn e Moving.Transition
+local function watchG100(entity)
+    local prevSpawn, prevTrans = false, false
+    while entity.Parent and ScreenGui.Parent do
+        local mv = entity:FindFirstChild("Moving")
+        local sp = mv and mv:FindFirstChild("Spawn")
+        local tr = mv and mv:FindFirstChild("Transition")
+        local ps = (sp and sp:IsA("Sound") and sp.Playing) or false
+        local pt = (tr and tr:IsA("Sound") and tr.Playing) or false
+        if AlertOn then
+            if ps and not prevSpawn then
+                alertNotify(entity, " spawned, hide on a grey or blue locker!")
+            end
+            if pt and not prevTrans then
+                alertNotify(entity, " will check gray lockers now, hide in a blue locker or table!")
+            end
+        end
+        prevSpawn, prevTrans = ps, pt
+        task.wait(0.1)
+    end
+end
+
 local function onEntitySpawned(entity)
     if isAlertIgnored(entity.Name) then return end
     TrackerEvents.spawned = entity.Name
+    local key = normalizeName(entity.Name)
+    if key == "g-100" then
+        task.spawn(watchG100, entity)
+        return
+    end
     if not AlertOn then return end
     task.spawn(function()
         task.wait(0.15)
         if not entity.Parent then return end
-        local c = entityColor(entity)
-        notify("<b>" .. richName(entity.Name, c) .. "</b> appeared. Hide!",
-            isDark(c) and Color3.new(1, 1, 1) or c, 5, "!")
+        alertNotify(entity, ALERT_VARIANT[key] or " appeared. Hide!")
     end)
 end
 
@@ -1391,7 +1442,7 @@ function setAntiVoid(v)
         local feet = pos.Y - off
         AV.floorY = feet
         local floor = create("Part", {
-            Name = "NIXON_AntiVoid", Anchored = true, CanCollide = true, CastShadow = false,
+            Name = "WTRALD_AntiVoid", Anchored = true, CanCollide = true, CastShadow = false,
             Transparency = 1, Size = Vector3.new(80, 6, 80),
             Position = Vector3.new(pos.X, feet - 3, pos.Z),
         })
@@ -2108,7 +2159,7 @@ task.spawn(function()
         setKillStat(string.format("%d%s", Kill.count, Kill.on and " · disabled" or ""))
         task.wait(0.5)
     end
-end)
+end);
 
 selectTab("Doors")
 setOpen(true)
