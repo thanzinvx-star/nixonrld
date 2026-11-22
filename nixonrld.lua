@@ -1,43 +1,43 @@
---[[
-    WTRALD v.1.4 — UI do RayBeats Ultra, tema Dark Red
-    Abas: Doors | ESP | Tracker | Items | Player | Modes
-    UI original: Fyan / FynLabs (RayBeats Ultra) — sem biblioteca externa.
-    Abrir/fechar: botão flutuante ou tecla R.
-]]
-
 local Players          = game:GetService("Players")
 local RunService       = game:GetService("RunService")
 local TweenService     = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local TextService      = game:GetService("TextService")
 local Workspace        = game:GetService("Workspace")
 local Lighting         = game:GetService("Lighting")
-local TextService      = game:GetService("TextService")
 local CoreGui          = game:GetService("CoreGui")
+local TextChatService  = game:GetService("TextChatService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LocalPlayer = Players.LocalPlayer
 
+-- accounts that cannot use Auto-Open Doors, Modes and Auto-Hide
+local BLOCKED_USERS = { ["shxdowlessxo"] = true }
+local IS_BLOCKED = BLOCKED_USERS[string.lower(LocalPlayer.Name)] == true
+local Blk = {} -- holds the blocked toggles so they can be reset
+
 local GUI_NAME = "wtrald_ui"
-local SCRIPT_NAME = "WTRALD v.1.4"
+local SCRIPT_NAME = "WTRALD v.1.5"
 
-----------------------------------------------------------------------
--- CONFIG
-----------------------------------------------------------------------
-
--- Pastas: Workspace.CurrentRoomsA, CurrentRoomsB, ... CurrentRooms?
 local SECTION_IDS = { "A", "B", "G", "MAZE", "T", "U", "Y", "Z", "?" }
 
--- Entidades que NUNCA recebem ESP (nome exato)
 local ESP_BLACKLIST = {}
 for _, n in ipairs({
     "B-300Baby", "B300Explosion", "ABC", "ABA", "BBB", "M-222", "AMON", "AMON2",
     "M-120-B", "CMOB1", "CMOB2", "CMOB3", "XH1", "ZH2",
-    "MOB1", "MOB2", "SN-1",
+    "MOB1", "MOB2", "SN-1", "Glee", "WideGlee", "Glee?", "Bigman", "SB-1", "Happyman", "Sadman", "Angryman", "Mournfulman", "Smartman", "Nerdman", "Shortman", "Scaredman", "G-3", "G-300", "Man", "Joyfulman", "Tallman", "C-1", "1-A", "JB-1",
+    "Mushman", "Microman", "Superman", "Sleepyman",
+    "SA-150", "PXI-150", "SRG-150", "GCH-150", "THI-150",
+    "CYK-150", "TLP-150", "ROT-150", "Glingo", "OMG",
+    "CV-300", "FA-122", "GW-122", "UGF-122", "GB-122",
+    "BG-122", "MS-122", "JE-122", "TE-222", "MAR-222",
+    "SPI-222", "GL-1", "nibbleton", "Spookyman",
+    "Pumpkin Tallman", "Ghostman", "Jollyman",
+    "Widowed Sleeper", "CAT-120", "Gnarp",
 }) do
     ESP_BLACKLIST[string.lower(n)] = true
 end
 
--- Ignoradas no ALERTA, no AUTO-HIDE e no Tracker (continuam com ESP).
--- Comparacao ignora maiusculas, espacos e parenteses.
 local function normalizeName(name)
     return (string.gsub(string.lower(tostring(name)), "[%s%(%)%[%]]", ""))
 end
@@ -46,11 +46,19 @@ local ALERT_IGNORE = {}
 for _, n in ipairs({
     "Happyman", "Joyfulman", "Nerdman", "Mournfulman", "Shortman", "Tallman",
     "Angryman", "Sadman", "Bigman", "SB-1", "1-A", "1-B", "1-G", "A-1", "CB-1", "Glee", "A-120", "Hardcore-120", "AMON", "AMON2",
-    "A-120 (V)", "A-120 (B)", "A-120 (G)", "A-120 (U)",
-    "C-1", "B-1", "G-1", "B-15", "G-3",
+    "A-120 (V)", "A-120 (B)", "A-120 (G)", "A-120 (U)", "A-120 (E)", "C-1", "B-1", "G-1", "B-15", "G-3",
     "Widowed Sleeper", "SP-1",
     "E-1", "DG-1", "XE-1", "CHA-1", "BM-1", "V-5", "XV-5", "SN-1",
-    "MOB1", "MOB2",
+    "MOB1", "MOB2", "M-222", "B-300Baby", "B300Explosion", "ABC", "ABA", "BBB",
+    "M-120-B", "CMOB1", "CMOB2", "CMOB3", "XH1", "ZH2",
+    "WideGlee", "Glee?", "Man", "Scaredman",
+    "Mushman", "Microman", "Superman", "Sleepyman",
+    "SA-150", "PXI-150", "SRG-150", "GCH-150", "THI-150",
+    "CYK-150", "TLP-150", "ROT-150", "Glingo", "OMG",
+    "CV-300", "FA-122", "GW-122", "UGF-122", "GB-122",
+    "BG-122", "MS-122", "JE-122", "TE-222", "MAR-222",
+    "SPI-222", "GL-1", "nibbleton", "Spookyman",
+    "Pumpkin Tallman", "Ghostman", "Jollyman", "CAT-120", "Gnarp",
 }) do
     ALERT_IGNORE[normalizeName(n)] = true
 end
@@ -72,75 +80,76 @@ local function isEspIgnored(name)
     return false
 end
 
--- Entidades que nao podem ser espectadas
 local function isSpecIgnored(name)
     local flat = string.gsub(string.lower(tostring(name)), "[^%w]", "")
-    return flat == "1a" or flat == "1b" or flat == "1g" or flat == "mob1" or flat == "mob2"
+
+    local ignored = {
+        "1a", "1b", "1g", "mob1", "mob2",
+
+        "happyman", "joyfulman", "nerdman", "mournfulman",
+        "shortman", "tallman", "angryman", "sadman", "bigman",
+        "sb1", "glee", "a120", "hardcore120", "amon", "amon2",
+        "a120v", "a120b", "a120g", "a120u",
+        "c1", "b1", "g1", "b15", "g3",
+        "widowedsleeper", "sp1", "e1", "dg1", "xe1",
+        "cha1", "bm1", "v5", "xv5", "sn1",
+        "b300baby", "b300explosion", "abc", "aba", "bbb",
+        "m222", "m120b", "cmob1", "cmob2", "cmob3",
+        "xh1", "zh2", "mushman", "microman", "superman",
+        "sleepyman", "sa150", "pxi150", "srg150", "gch150",
+        "thi150", "cyk150", "tlp150", "rot150", "glingo",
+        "omg", "cv300", "fa122", "gw122", "ugf122",
+        "gb122", "bg122", "ms122", "je122", "te222",
+        "mar222", "spi222", "gl1", "nibbleton",
+        "spookyman", "pumpkintallman", "ghostman",
+        "jollyman", "cat120", "gnarp"
+    }
+
+    for _, v in ipairs(ignored) do
+        if flat == v then
+            return true
+        end
+    end
+
+    return false
 end
 
--- Variantes de alerta (texto depois do nome da entidade)
-local ALERT_TIME = 2.5
-local ALERT_VARIANT = {}
-local function regVariant(list, text)
-    for _, n in ipairs(list) do ALERT_VARIANT[normalizeName(n)] = text end
-end
+local RETRY_AFTER = 0.3
 
--- Variante 1: mesa
-regVariant({
-    "A-105", "C-105", "A-100", "X-100", "A-320", "B-170", "B-40", "G-55", "CG-55", "G-150",
-    "G-122", "Cate-40", "Noonir-40", "Omg-40", "G-10", "CG-10", "T-110", "GodHasForsaken",
-}, " spawned, hide in a table! (table must be color of lightwood)")
-
--- Variante 2: locker cinza ou azul
-regVariant({
-    "A-200", "B-120", "CV-300", "FO-300", "G-140", "MY_INNER_SKIN",
-}, " spawned, hide on a grey locker (must be color RGB(163, 162, 165)) or blue locker! (must be RGB(13, 105, 172))")
-
--- A-185: aviso unico
-regVariant({ "A-185" }, " spawned, hide on a GREY locker or a table!")
-
--- Tema Dark Red (nomes mantidos para a logica)
 local Theme = {
-    bg      = Color3.fromRGB(10, 8, 9),
-    header  = Color3.fromRGB(20, 14, 15),
-    card    = Color3.fromRGB(26, 19, 20),
-    cardHi  = Color3.fromRGB(44, 28, 30),
-    stroke  = Color3.fromRGB(139, 0, 0),
-    text    = Color3.fromRGB(255, 255, 255),
-    sub     = Color3.fromRGB(255, 255, 255),
-    accent  = Color3.fromRGB(139, 0, 0),
-    accent2 = Color3.fromRGB(196, 30, 30),
-    accentText = Color3.fromRGB(255, 255, 255),
-    btn     = Color3.fromRGB(92, 6, 8),
-    dangerBtn = Color3.fromRGB(170, 20, 24),
+    bg      = Color3.fromRGB(10, 10, 15),
+    header  = Color3.fromRGB(17, 17, 26),
+    card    = Color3.fromRGB(26, 26, 39),
+    cardHi  = Color3.fromRGB(38, 38, 58),
+    stroke  = Color3.fromRGB(60, 60, 88),
+    text    = Color3.fromRGB(242, 242, 252),
+    sub     = Color3.fromRGB(150, 150, 178),
+    accent  = Color3.fromRGB(139, 92, 246),
+    accent2 = Color3.fromRGB(34, 211, 238),
+    accentText = Color3.fromRGB(10, 10, 15),
     on      = Color3.fromRGB(82, 196, 128),
-    off     = Color3.fromRGB(44, 28, 30),
+    off     = Color3.fromRGB(38, 38, 58),
     danger  = Color3.fromRGB(229, 77, 82),
     warn    = Color3.fromRGB(236, 196, 84),
 }
 
-----------------------------------------------------------------------
--- CLEANUP DE EXECUCOES ANTERIORES
-----------------------------------------------------------------------
-
-local OLD_NAMES = { GUI_NAME, "nixon_rld_ui", "wtrald_ui_beta" }
+local OLD_NAMES = { GUI_NAME, "wtrald_ui_beta" }
 for _, getParent in ipairs({
     function() return (gethui and gethui()) or CoreGui end,
     function() return LocalPlayer:FindFirstChildOfClass("PlayerGui") end,
 }) do
     pcall(function()
         local parent = getParent()
-        for _, c in ipairs(parent:GetChildren()) do
-            for _, old in ipairs(OLD_NAMES) do
-                if c.Name == old or c.Name == old .. "_ESP" then c:Destroy() break end
+        for _, child in ipairs(parent:GetChildren()) do
+            for _, oldName in ipairs(OLD_NAMES) do
+                if child.Name == oldName or child.Name == oldName .. "_ESP" then
+                    child:Destroy()
+                    break
+                end
             end
         end
     end)
 end
-
-----------------------------------------------------------------------
--- HELPERS
-----------------------------------------------------------------------
 
 local WHITE = Color3.new(1, 1, 1)
 local conns = {}
@@ -210,7 +219,6 @@ local function esc(s)
     return (tostring(s):gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"))
 end
 
--- feedback de toque para botoes de cor solida
 local function tapFx(btn, base, hi)
     btn.MouseButton1Down:Connect(function() tween(btn, 0.08, { BackgroundColor3 = hi }) end)
     local function up() tween(btn, 0.22, { BackgroundColor3 = base }) end
@@ -223,10 +231,6 @@ end
 
 local vp = (Workspace.CurrentCamera and Workspace.CurrentCamera.ViewportSize) or Vector2.new(800, 400)
 
-----------------------------------------------------------------------
--- UI: JANELA (RayBeats Ultra, vazia)
-----------------------------------------------------------------------
-
 local ScreenGui = create("ScreenGui", {
     Name = GUI_NAME, ResetOnSpawn = false, IgnoreGuiInset = true,
     ZIndexBehavior = Enum.ZIndexBehavior.Sibling, DisplayOrder = 999,
@@ -238,11 +242,11 @@ mount(ESPFolder)
 
 local win = create("Frame", {
     Name = "Window", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
-    Size = UDim2.fromOffset(480, 330), BackgroundColor3 = WHITE, BorderSizePixel = 0, Active = true,
+    Size = UDim2.fromOffset(560, 360), BackgroundColor3 = WHITE, BorderSizePixel = 0, Active = true,
     Parent = ScreenGui,
 }, {
     corner(20),
-    create("UIGradient", { Color = ColorSequence.new(Color3.fromRGB(34, 8, 10), Color3.fromRGB(9, 8, 9)), Rotation = 125 }),
+    create("UIGradient", { Color = ColorSequence.new(Color3.fromRGB(22, 17, 40), Color3.fromRGB(9, 9, 14)), Rotation = 125 }),
 })
 local winStroke = create("UIStroke", { Color = WHITE, Thickness = 2, Transparency = 0.1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Parent = win })
 local winGrad = accentGrad()
@@ -253,7 +257,7 @@ local function fitScale()
     local cam = Workspace.CurrentCamera
     if not cam then return 1 end
     local v = cam.ViewportSize
-    return math.clamp(math.min(v.X / 530, v.Y / 380), 0.5, 1.15)
+    return math.clamp(math.min(v.X / 610, v.Y / 410), 0.5, 1.15)
 end
 uiScale.Scale = fitScale()
 if Workspace.CurrentCamera then
@@ -261,10 +265,11 @@ if Workspace.CurrentCamera then
 end
 
 local top = create("Frame", { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 44), Parent = win })
-label({
-    Text = SCRIPT_NAME, Font = FONT_BLACK, TextSize = 18, TextColor3 = WHITE,
-    Position = UDim2.new(0, 16, 0, 0), Size = UDim2.new(0, 160, 1, 0), Parent = top,
+local logo = label({
+    Text = "RLD", Font = FONT_BLACK, TextSize = 20, TextColor3 = WHITE,
+    Position = UDim2.new(0, 16, 0, 0), Size = UDim2.new(0, 90, 1, 0), Parent = top,
 })
+accentGrad().Parent = logo
 
 local function topBtn(txt, x, cb)
     local b = create("TextButton", {
@@ -278,7 +283,6 @@ local function topBtn(txt, x, cb)
     return b
 end
 
--- arrastar pela barra superior
 do
     local dragging, dragStart, startPos
     bind(top.InputBegan, function(i)
@@ -297,17 +301,26 @@ do
     end)
 end
 
--- botao flutuante + abrir/fechar
 local fab = create("TextButton", {
-    Text = "", BackgroundColor3 = Theme.accent, AutoButtonColor = false,
-    Position = UDim2.new(0, 12, 0.5, -24), Size = UDim2.fromOffset(48, 48), BorderSizePixel = 0, ZIndex = 5,
+    Text = "",
+    BackgroundColor3 = WHITE,
+    AutoButtonColor = false,
+    Position = UDim2.new(0, 12, 0.5, -24),
+    Size = UDim2.fromOffset(48, 48),
+    BorderSizePixel = 0,
+    ZIndex = 5,
     Parent = ScreenGui,
-}, { corner(24), stroke(Theme.accent2, 2, 0.2) })
+}, {
+    corner(24),
+    stroke(WHITE, 2, 0.6)
+})
+
+accentGrad(45).Parent = fab
 
 for i = 0, 2 do
     create("Frame", {
         AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0.5, 0, 0.5, (i - 1) * 7),
-        Size = UDim2.fromOffset(20, 3), BackgroundColor3 = WHITE, BorderSizePixel = 0, ZIndex = 6, Parent = fab,
+        Size = UDim2.fromOffset(20, 3), BackgroundColor3 = Theme.bg, BorderSizePixel = 0, ZIndex = 6, Parent = fab,
     }, { pill() })
 end
 
@@ -325,20 +338,16 @@ bind(UserInputService.InputBegan, function(i, gp)
 end)
 
 local side = create("Frame", {
-    BackgroundTransparency = 1, Position = UDim2.new(0, 10, 0, 48), Size = UDim2.new(0, 104, 1, -58), Parent = win,
+    BackgroundTransparency = 1, Position = UDim2.new(0, 10, 0, 48), Size = UDim2.new(0, 128, 1, -58), Parent = win,
 }, { create("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }) })
 
 local content = create("Frame", {
-    BackgroundTransparency = 1, Position = UDim2.new(0, 122, 0, 48), Size = UDim2.new(1, -132, 1, -58),
+    BackgroundTransparency = 1, Position = UDim2.new(0, 146, 0, 48), Size = UDim2.new(1, -156, 1, -58),
     ClipsDescendants = true, Parent = win,
 })
 
-----------------------------------------------------------------------
--- UI: ABAS E COMPONENTES
-----------------------------------------------------------------------
-
-local TAB_NAMES = { "Doors", "ESP", "Tracker", "Items", "Player", "Modes" }
-local TAB_ICONS = { Doors = "🚪", ESP = "👁", Tracker = "📡", Items = "🎒", Player = "🏃", Modes = "🎮" }
+local TAB_NAMES = { "Doors", "ESP", "Tracker", "Items", "Player", "Modes", "Chat" }
+local TAB_ICONS = { Doors = "🚪", ESP = "👁", Tracker = "📡", Items = "🎒", Player = "👤", Modes = "🎮", Chat = "💬" }
 
 local pages, tabBtns = {}, {}
 local orders = setmetatable({}, { __mode = "k" })
@@ -351,7 +360,8 @@ local function selectTab(name)
     for n, p in pairs(pages) do p.Visible = (n == name) end
     for n, t in pairs(tabBtns) do
         local on = n == name
-        tween(t.b, 0.2, { BackgroundColor3 = on and Theme.accent or Theme.card })
+        t.g.Enabled = on
+        tween(t.b, 0.2, { BackgroundColor3 = on and WHITE or Theme.card, TextColor3 = on and Theme.bg or Theme.sub })
     end
 end
 
@@ -366,17 +376,20 @@ for i, name in ipairs(TAB_NAMES) do
     })
     pages[name] = page
     local b = create("TextButton", {
-        Text = TAB_ICONS[name] .. " " .. name, Font = FONT_BOLD, TextSize = 12, TextColor3 = Theme.sub,
+        Text = TAB_ICONS[name] .. "  " .. name, Font = FONT_BOLD, TextSize = 12, TextColor3 = Theme.sub,
         BackgroundColor3 = Theme.card, AutoButtonColor = false, Size = UDim2.new(1, 0, 0, 34), BorderSizePixel = 0,
         LayoutOrder = i, TextXAlignment = Enum.TextXAlignment.Left, Parent = side,
-    }, { corner(10), stroke(Theme.stroke, 1, 0.5), create("UIPadding", { PaddingLeft = UDim.new(0, 10) }) })
-    tabBtns[name] = { b = b }
+    }, { corner(10), create("UIPadding", { PaddingLeft = UDim.new(0, 12) }) })
+    local g = accentGrad()
+    g.Enabled = false
+    g.Parent = b
+    tabBtns[name] = { b = b, g = g }
     b.MouseButton1Click:Connect(function() selectTab(name) end)
 end
 
 local function sectionLabel(page, text)
     local l = label({
-        Text = string.upper(text), TextSize = 11, Font = FONT_BOLD, TextColor3 = Theme.text,
+        Text = string.upper(text), TextSize = 11, Font = FONT_BOLD, TextColor3 = Theme.accent2,
         Size = UDim2.new(1, 0, 0, 20), LayoutOrder = nextOrder(page), Parent = page,
     })
     return l
@@ -387,16 +400,15 @@ local function baseRow(page, h)
         Size = UDim2.new(1, 0, 0, h), BackgroundColor3 = Theme.card, BorderSizePixel = 0,
         LayoutOrder = nextOrder(page), Parent = page,
     }, { corner(12) })
-    local st = create("UIStroke", { Color = Theme.stroke, Thickness = 1, Transparency = 0.4, ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Parent = row })
+    local st = create("UIStroke", { Color = Theme.stroke, Thickness = 1, Transparency = 0.55, ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Parent = row })
     return row, st
 end
 
--- titulo + subtitulo, com largura reservada para o controle da direita
 local function rowTexts(row, title, sub, rightW, danger, rich)
     local w = -(28 + rightW)
     label({
         Text = title, RichText = rich == true, TextSize = 13, Font = FONT_BOLD,
-        TextColor3 = Theme.text,
+        TextColor3 = danger and Theme.danger or Theme.text,
         TextTruncate = Enum.TextTruncate.AtEnd, Position = UDim2.fromOffset(14, 8),
         Size = UDim2.new(1, w, 0, 18), Parent = row,
     })
@@ -429,7 +441,10 @@ local function makeToggle(page, title, sub, onChange)
     local sw = create("Frame", {
         Size = UDim2.fromOffset(42, 22), AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -12, 0.5, 0),
         BackgroundColor3 = Theme.cardHi, BorderSizePixel = 0, Parent = row,
-    }, { corner(11), stroke(Theme.stroke, 1, 0.3) })
+    }, { corner(11) })
+    local g = accentGrad()
+    g.Enabled = false
+    g.Parent = sw
     local knob = create("Frame", {
         Size = UDim2.fromOffset(16, 16), AnchorPoint = Vector2.new(0, 0.5), Position = UDim2.new(0, 3, 0.5, 0),
         BackgroundColor3 = WHITE, BorderSizePixel = 0, Parent = sw,
@@ -442,36 +457,34 @@ local function makeToggle(page, title, sub, onChange)
     local state = false
     local function set(v, silent)
         state = v
-        tween(sw, 0.18, { BackgroundColor3 = v and Theme.accent2 or Theme.cardHi })
+        g.Enabled = v
+        tween(sw, 0.18, { BackgroundColor3 = v and WHITE or Theme.cardHi })
         tween(knob, 0.18, { Position = v and UDim2.new(1, -19, 0.5, 0) or UDim2.new(0, 3, 0.5, 0) })
-        tween(rowStroke, 0.3, { Color = v and Theme.accent2 or Theme.stroke, Transparency = v and 0.05 or 0.4 })
+        tween(rowStroke, 0.3, { Color = v and Theme.accent or Theme.stroke, Transparency = v and 0.35 or 0.55 })
         if not silent and onChange then task.spawn(onChange, v) end
     end
     btn.Activated:Connect(function() set(not state) end)
     return { Set = set, Get = function() return state end }
 end
 
--- rich = true => o titulo aceita RichText (mantem fundo escuro para as cores ficarem legiveis)
 local function makeButton(page, title, sub, onClick, danger, rich)
     local row = baseRow(page, 52)
-    local base = rich and Theme.card or (danger and Theme.dangerBtn or Theme.btn)
-    local hover = rich and Theme.cardHi or (danger and Theme.accent2 or Theme.accent)
-    row.BackgroundColor3 = base
     rowTexts(row, title, sub, 30, danger, rich)
+    local tint = danger and Theme.danger or Theme.accent2
     local chev = label({
-        Text = ">", TextSize = 18, Font = FONT_BOLD, TextColor3 = Theme.text,
+        Text = ">", TextSize = 18, Font = FONT_BOLD, TextColor3 = Theme.sub,
         TextXAlignment = Enum.TextXAlignment.Center, AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.new(1, -14, 0.5, 0), Size = UDim2.fromOffset(16, 22), Parent = row,
     })
     local btn = overlayButton(row)
     pressFx(btn,
         function()
-            tween(row, 0.1, { BackgroundColor3 = hover })
-            tween(chev, 0.15, { Position = UDim2.new(1, -10, 0.5, 0) }, Enum.EasingStyle.Quint)
+            tween(row, 0.1, { BackgroundColor3 = Theme.cardHi })
+            tween(chev, 0.15, { Position = UDim2.new(1, -10, 0.5, 0), TextColor3 = tint }, Enum.EasingStyle.Quint)
         end,
         function()
-            tween(row, 0.25, { BackgroundColor3 = base })
-            tween(chev, 0.3, { Position = UDim2.new(1, -14, 0.5, 0) }, Enum.EasingStyle.Quint)
+            tween(row, 0.25, { BackgroundColor3 = Theme.card })
+            tween(chev, 0.3, { Position = UDim2.new(1, -14, 0.5, 0), TextColor3 = Theme.sub }, Enum.EasingStyle.Quint)
         end)
     btn.Activated:Connect(function() task.spawn(onClick) end)
 end
@@ -486,7 +499,6 @@ local function makeParagraph(page, text, h)
     return l
 end
 
--- cartao de status (valor atualizado em tempo real)
 local function makeStat(page, title)
     local row = baseRow(page, 50)
     label({
@@ -501,7 +513,6 @@ local function makeStat(page, title)
     return function(text) value.Text = text end
 end
 
--- status com indicador colorido
 local function makeStatus(page, title)
     local row = baseRow(page, 50)
     label({
@@ -668,24 +679,20 @@ local function makeInput(page, title, placeholder, onSubmit)
         Position = UDim2.fromOffset(14, 8), Size = UDim2.new(1, -28, 0, 18), Parent = row,
     })
     local box = create("TextBox", {
-        Text = "", PlaceholderText = placeholder, PlaceholderColor3 = Color3.fromRGB(190, 190, 190), TextColor3 = Theme.text,
+        Text = "", PlaceholderText = placeholder, PlaceholderColor3 = Theme.sub, TextColor3 = Theme.text,
         TextSize = 13, Font = FONT_MONO, ClearTextOnFocus = false, TextXAlignment = Enum.TextXAlignment.Left,
         Position = UDim2.fromOffset(14, 40), Size = UDim2.new(1, -92, 0, 32), BackgroundColor3 = Theme.cardHi,
         BorderSizePixel = 0, Parent = row,
     }, { corner(8), create("UIPadding", { PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10) }) })
     local ok = create("TextButton", {
-        Text = "OK", TextSize = 13, Font = FONT_BOLD, TextColor3 = WHITE,
+        Text = "OK", TextSize = 13, Font = FONT_BOLD, TextColor3 = Theme.accentText,
         AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 40), Size = UDim2.fromOffset(56, 32),
-        BackgroundColor3 = Theme.accent, AutoButtonColor = false, BorderSizePixel = 0, Parent = row,
+        BackgroundColor3 = WHITE, AutoButtonColor = false, BorderSizePixel = 0, Parent = row,
     }, { corner(8) })
-    tapFx(ok, Theme.accent, Theme.accent2)
+    accentGrad(45).Parent = ok
     box.FocusLost:Connect(function(enter) if enter then onSubmit(box.Text) end end)
     ok.Activated:Connect(function() onSubmit(box.Text) end)
 end
-
-----------------------------------------------------------------------
--- UI: NOTIFICACOES (toasts) — topo central
-----------------------------------------------------------------------
 
 local ToastHolder = create("Frame", {
     Name = "Toasts", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 12),
@@ -695,14 +702,27 @@ local ToastHolder = create("Frame", {
     create("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }),
 })
 
+local CornerHolder = create("Frame", {
+    Name = "CornerToasts", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 12),
+    Size = UDim2.fromOffset(math.clamp(vp.X - 90, 200, 260), 0), AutomaticSize = Enum.AutomaticSize.Y,
+    BackgroundTransparency = 1, Parent = ScreenGui,
+}, {
+    create("UIListLayout", {
+        Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder,
+        HorizontalAlignment = Enum.HorizontalAlignment.Right,
+    }),
+})
+
 local activeToasts = {}
+local activeCorner = {}
 local MAX_TOASTS = 3
 local TOAST_H = 52
 local toastN = 0
 
 local function removeActive(entry)
-    local i = table.find(activeToasts, entry)
-    if i then table.remove(activeToasts, i) end
+    local list = entry.list or activeToasts
+    local i = table.find(list, entry)
+    if i then table.remove(list, i) end
 end
 
 local function dismissToast(entry, fast)
@@ -710,34 +730,50 @@ local function dismissToast(entry, fast)
     entry.dismissed = true
     local t = fast and 0.15 or 0.28
     tween(entry.card, t, { GroupTransparency = 1 })
+    if entry.ringStroke then tween(entry.ringStroke, t, { Transparency = 1 }) end
     tween(entry.wrap, t + 0.06, { Size = UDim2.new(1, 0, 0, 0) })
     task.delay(t + 0.12, function()
         if entry.wrap and entry.wrap.Parent then entry.wrap:Destroy() end
     end)
 end
 
-local function notify(text, color, duration, glyph)
+local function notify(text, color, duration, glyph, corner)
+    local list = corner and activeCorner or activeToasts
+    local holder = corner and CornerHolder or ToastHolder
     color = color or Theme.accent
     duration = duration or 3.5
     glyph = glyph or (color == Theme.on and "✓") or ((color == Theme.warn or color == Theme.danger) and "!") or "i"
 
-    for _, e in ipairs(activeToasts) do
+    for _, e in ipairs(list) do
         if e.text == text and not e.dismissed then e.restart(duration) return end
     end
-    while #activeToasts >= MAX_TOASTS do
-        local old = table.remove(activeToasts, 1)
+    while #list >= MAX_TOASTS do
+        local old = table.remove(list, 1)
         if old then dismissToast(old, true) end
     end
 
     toastN += 1
     local wrap = create("Frame", {
-        Size = UDim2.new(1, 0, 0, TOAST_H), BackgroundTransparency = 1, ClipsDescendants = true,
-        LayoutOrder = toastN, Parent = ToastHolder,
+        Size = UDim2.new(1, 0, 0, TOAST_H), BackgroundTransparency = 1,
+        LayoutOrder = toastN, Parent = holder,
     })
     local card = create("CanvasGroup", {
         Size = UDim2.new(1, 0, 0, TOAST_H), BackgroundColor3 = Theme.header, GroupTransparency = 1, Parent = wrap,
-    }, { corner(12), stroke(color, 1.5, 0.35) })
-    create("TextLabel", {
+    }, { corner(12) })
+    -- border lives on its own frame (outside the CanvasGroup) so the corners stay clean
+    local ring = create("Frame", {
+        Size = UDim2.new(1, 0, 0, TOAST_H), BackgroundTransparency = 1, BorderSizePixel = 0,
+        ZIndex = 5, Parent = wrap,
+    }, { corner(12) })
+    local ringStroke = create("UIStroke", {
+        Color = WHITE, Thickness = 1.5, Transparency = 1,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Parent = ring,
+    })
+    create("UIGradient", {
+        Color = ColorSequence.new(color, isDark(color) and Theme.accent2 or color:Lerp(WHITE, 0.5)),
+        Rotation = 35, Parent = ringStroke,
+    })
+    local badge = create("TextLabel", {
         Text = glyph, TextSize = 14, Font = FONT_BLACK, TextColor3 = color, BackgroundColor3 = color,
         BackgroundTransparency = 0.84, Size = UDim2.fromOffset(26, 26), Position = UDim2.fromOffset(10, 11),
         BorderSizePixel = 0, Parent = card,
@@ -753,7 +789,7 @@ local function notify(text, color, duration, glyph)
     }, { pill() })
     local bar = create("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = color, BorderSizePixel = 0, Parent = barTrack }, { pill() })
 
-    local entry = { text = text, wrap = wrap, card = card, dismissed = false, token = 0 }
+    local entry = { text = text, wrap = wrap, card = card, ringStroke = ringStroke, list = list, dismissed = false, token = 0 }
     local barTween
     local function start(dur)
         entry.token += 1
@@ -769,14 +805,11 @@ local function notify(text, color, duration, glyph)
         end)
     end
     entry.restart = function(dur) start(dur) end
-    table.insert(activeToasts, entry)
+    table.insert(list, entry)
     tween(card, 0.3, { GroupTransparency = 0 })
+    tween(ringStroke, 0.3, { Transparency = 0.1 })
     start(duration)
 end
-
-----------------------------------------------------------------------
--- UI: JANELA DE CONFIRMACAO GENERICA
-----------------------------------------------------------------------
 
 local Dialog = { onConfirm = nil, base = Theme.accent, hi = Theme.accent }
 
@@ -833,7 +866,6 @@ function Dialog.hide()
     Dialog.onConfirm = nil
 end
 
--- opts: title (rich), body (rich), bar, confirmText, confirmBg, confirmFg, onConfirm
 function Dialog.show(opts)
     Dialog.onConfirm = opts.onConfirm
     Dialog.base = opts.confirmBg or Theme.accent
@@ -866,20 +898,14 @@ ConfirmBtn.Activated:Connect(function()
 end)
 end
 
--- animacao da borda da janela
 bind(RunService.Heartbeat, function(dt)
     winGrad.Rotation = (winGrad.Rotation + dt * 50) % 360
 end)
-
-----------------------------------------------------------------------
--- LOGICA: ENTIDADES + ESP (cor vem do PointLight da entidade)
-----------------------------------------------------------------------
 
 local function getAllEntities()
     local list = {}
     local folder = Workspace:FindFirstChild("Entities")
     if not folder then return list end
-    -- Entidades podem estar em subpastas; evita contar partes internas de um Model
     for _, obj in ipairs(folder:GetDescendants()) do
         if obj:IsA("Model") or obj:IsA("BasePart") then
             local ancestor = obj.Parent
@@ -940,7 +966,6 @@ local function getEntities()
     return list
 end
 
--- lista do Spectate: igual ao ESP, menos 1-A / 1-B / 1-G (e MOB1/MOB2)
 local function getSpectables()
     local list = {}
     for _, c in ipairs(getEntities()) do
@@ -993,7 +1018,6 @@ local function findMockLight(entity)
     return fallback
 end
 
--- G-88: o PointLight ativo se chama Orange, Pink, Red ou Yellow
 local G88_COLORS = {
     orange = Color3.fromRGB(255, 128, 0),
     pink   = Color3.fromRGB(255, 105, 180),
@@ -1129,10 +1153,6 @@ task.spawn(function()
     end
 end)
 
-----------------------------------------------------------------------
--- LOGICA: SPECTATE ENTITIES
-----------------------------------------------------------------------
-
 local Spec = { active = false, entity = nil }
 local SpecAudio = { originals = setmetatable({}, { __mode = "k" }) }
 
@@ -1251,37 +1271,202 @@ PrevBtn.Activated:Connect(function() specStep(-1) end)
 NextBtn.Activated:Connect(function() specStep(1) end)
 CloseBtn.Activated:Connect(specClose)
 
-----------------------------------------------------------------------
--- LOGICA: ALERTA DE ENTIDADES (variantes)
-----------------------------------------------------------------------
-
 local AlertOn = false
-local TrackerEvents = { spawned = "—", despawned = "—" }
-
-local function alertNotify(entity, suffix)
-    local c = entityColor(entity)
-    notify("<b>" .. richName(entity.Name, c) .. "</b>" .. suffix,
-        isDark(c) and Color3.new(1, 1, 1) or c, ALERT_TIME, "!")
+local ALERT_TIME = 2.5
+local ALERT_VARIANT = {}
+local function regVariant(list, suffix)
+    for _, name in ipairs(list) do ALERT_VARIANT[normalizeName(name)] = suffix end
 end
 
--- G-100: avisos pelos sons Moving.Spawn e Moving.Transition
+regVariant({
+    "A-105", "C-105", "A-100", "X-100", "A-320", "B-170", "B-40",
+    "G-55", "CG-55", "G-150", "G-122", "Cate-40", "Noonir-40",
+    "Omg-40", "G-10", "CG-10", "T-110", "GodHasForsaken",
+}, " spawned, hide in a table! (table must be color of lightwood)")
+
+regVariant({
+    "A-200", "B-120", "CV-300", "FO-300", "G-140", "MY_INNER_SKIN",
+}, " spawned, hide on a grey locker (must be color RGB(163, 162, 165)) or blue locker! (must be RGB(13, 105, 172))")
+
+regVariant({ "A-185" }, " spawned, hide on a GREY locker or a table!")
+
+local TrackerEvents = { spawned = "—", despawned = "—" }
+
+-- Centered alert card with the entity picture (RushNew.MonsterGui)
+local alertNotify
+do
+local AlertHolder = create("Frame", {
+    Name = "Alerts", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.fromScale(0.5, 0.32),
+    Size = UDim2.fromOffset(math.clamp(vp.X - 60, 240, 360), 0), AutomaticSize = Enum.AutomaticSize.Y,
+    BackgroundTransparency = 1, ZIndex = 30, Parent = ScreenGui,
+}, {
+    create("UIListLayout", {
+        Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder,
+        HorizontalAlignment = Enum.HorizontalAlignment.Center,
+    }),
+})
+
+-- Finds the entity picture: RushNew.MonsterGui, or any MonsterGui / BillboardGui variant
+local function imageFrom(gui)
+    if gui:IsA("StringValue") and gui.Value ~= "" then
+        return { Image = gui.Value, Offset = Vector2.zero, Size = Vector2.zero }
+    end
+    local src
+    if gui:IsA("ImageLabel") or gui:IsA("ImageButton") then
+        src = gui
+    else
+        src = gui:FindFirstChildWhichIsA("ImageLabel", true) or gui:FindFirstChildWhichIsA("ImageButton", true)
+    end
+    if src and src.Image ~= "" then
+        return { Image = src.Image, Offset = src.ImageRectOffset, Size = src.ImageRectSize }
+    end
+    local decal = gui:FindFirstChildWhichIsA("Decal", true) or gui:FindFirstChildWhichIsA("Texture", true)
+    if decal and decal.Texture ~= "" then
+        return { Image = decal.Texture, Offset = Vector2.zero, Size = Vector2.zero }
+    end
+    return nil
+end
+
+local IMAGE_GUI_NAMES = { "MonsterGui", "BillboardGui" }
+
+local function findEntityImage(entity)
+    local roots = {}
+    local rush = (entity.Name == "RushNew") and entity or entity:FindFirstChild("RushNew", true)
+    if rush then table.insert(roots, rush) end
+    table.insert(roots, entity)
+
+    for _, root in ipairs(roots) do
+        for _, nm in ipairs(IMAGE_GUI_NAMES) do
+            local gui = (root.Name == nm) and root or root:FindFirstChild(nm, true)
+            if gui then
+                local r = imageFrom(gui)
+                if r then return r end
+            end
+        end
+    end
+    -- last resort: any BillboardGui object inside the entity
+    for _, d in ipairs(entity:GetDescendants()) do
+        if d:IsA("BillboardGui") then
+            local r = imageFrom(d)
+            if r then return r end
+        end
+    end
+    return nil
+end
+
+local activeAlerts, alertN = {}, 0
+local ALERT_SHOW = 4
+
+local function dismissAlert(a)
+    if a.dead then return end
+    a.dead = true
+    local i = table.find(activeAlerts, a)
+    if i then table.remove(activeAlerts, i) end
+    tween(a.card, 0.25, { GroupTransparency = 1 })
+    if a.ringStroke then tween(a.ringStroke, 0.25, { Transparency = 1 }) end
+    tween(a.wrap, 0.3, { Size = UDim2.new(1, 0, 0, 0) })
+    task.delay(0.35, function() if a.wrap.Parent then a.wrap:Destroy() end end)
+end
+
+alertNotify = function(entity, suffix)
+    local color = entityColor(entity)
+    local accent = isDark(color) and WHITE or color
+
+    while #activeAlerts >= 3 do dismissAlert(activeAlerts[1]) end
+
+    alertN += 1
+    local wrap = create("Frame", {
+        Size = UDim2.new(1, 0, 0, 84), BackgroundTransparency = 1,
+        LayoutOrder = alertN, ZIndex = 30, Parent = AlertHolder,
+    })
+    local card = create("CanvasGroup", {
+        Size = UDim2.new(1, 0, 0, 84), BackgroundColor3 = Theme.header, GroupTransparency = 1,
+        ZIndex = 31, Parent = wrap,
+    }, { corner(14) })
+    -- border on its own frame (outside the CanvasGroup) so the corners stay clean
+    local ring = create("Frame", {
+        Size = UDim2.new(1, 0, 0, 84), BackgroundTransparency = 1, BorderSizePixel = 0,
+        ZIndex = 33, Parent = wrap,
+    }, { corner(14) })
+    local ringStroke = create("UIStroke", {
+        Color = WHITE, Thickness = 2, Transparency = 1,
+        ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Parent = ring,
+    })
+    create("UIGradient", {
+        Color = ColorSequence.new(accent, isDark(color) and Theme.accent2 or color:Lerp(WHITE, 0.5)),
+        Rotation = 35, Parent = ringStroke,
+    })
+
+    -- picture only: no frame, no background, no rounded corners
+    local img = create("ImageLabel", {
+        BackgroundTransparency = 1, BorderSizePixel = 0, Visible = false,
+        Size = UDim2.fromOffset(64, 64), Position = UDim2.fromOffset(10, 10),
+        ScaleType = Enum.ScaleType.Fit, ZIndex = 32, Parent = card,
+    })
+
+    local nameLbl = label({
+        Text = "<b>" .. richName(entity.Name, color) .. "</b>", RichText = true, TextSize = 16,
+        Font = FONT_BOLD, TextTruncate = Enum.TextTruncate.AtEnd,
+        Position = UDim2.fromOffset(12, 10), Size = UDim2.new(1, -24, 0, 20), Parent = card,
+    })
+    local descLbl = label({
+        Text = "The entity" .. suffix, TextSize = 12, Font = FONT_MED, TextColor3 = Theme.text,
+        TextWrapped = true, TextYAlignment = Enum.TextYAlignment.Top,
+        Position = UDim2.fromOffset(12, 32), Size = UDim2.new(1, -24, 0, 44), Parent = card,
+    })
+    local track = create("Frame", {
+        Position = UDim2.new(0, 10, 1, -6), Size = UDim2.new(1, -20, 0, 2),
+        BackgroundColor3 = Theme.stroke, BackgroundTransparency = 0.4, BorderSizePixel = 0, Parent = card,
+    }, { pill() })
+    local bar = create("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = accent, BorderSizePixel = 0, Parent = track }, { pill() })
+
+    local a = { wrap = wrap, card = card, ringStroke = ringStroke, dead = false }
+    table.insert(activeAlerts, a)
+
+    -- the picture may load a moment after the entity spawns: retry for a bit
+    task.spawn(function()
+        local t0 = os.clock()
+        while not a.dead and os.clock() - t0 < 2 do
+            local ok, src = pcall(findEntityImage, entity)
+            if ok and src then
+                img.Image = src.Image
+                img.ImageRectOffset = src.Offset
+                img.ImageRectSize = src.Size
+                img.Visible = true
+                nameLbl.Position = UDim2.fromOffset(86, 10)
+                nameLbl.Size = UDim2.new(1, -96, 0, 20)
+                descLbl.Position = UDim2.fromOffset(86, 32)
+                descLbl.Size = UDim2.new(1, -96, 0, 44)
+                return
+            end
+            task.wait(0.1)
+        end
+    end)
+    tween(card, 0.25, { GroupTransparency = 0 })
+    tween(ringStroke, 0.25, { Transparency = 0.1 })
+    tween(bar, ALERT_SHOW, { Size = UDim2.fromScale(0, 1) }, Enum.EasingStyle.Linear)
+    task.delay(ALERT_SHOW, function() dismissAlert(a) end)
+end
+end
+
 local function watchG100(entity)
     local prevSpawn, prevTrans = false, false
     while entity.Parent and ScreenGui.Parent do
-        local mv = entity:FindFirstChild("Moving")
-        local sp = mv and mv:FindFirstChild("Spawn")
-        local tr = mv and mv:FindFirstChild("Transition")
-        local ps = (sp and sp:IsA("Sound") and sp.Playing) or false
-        local pt = (tr and tr:IsA("Sound") and tr.Playing) or false
+        local moving = entity:FindFirstChild("Moving")
+        local spawnSound = moving and moving:FindFirstChild("Spawn")
+        local transitionSound = moving and moving:FindFirstChild("Transition")
+        local playingSpawn = spawnSound and spawnSound:IsA("Sound") and spawnSound.Playing or false
+        local playingTransition = transitionSound and transitionSound:IsA("Sound") and transitionSound.Playing or false
+
         if AlertOn then
-            if ps and not prevSpawn then
+            if playingSpawn and not prevSpawn then
                 alertNotify(entity, " spawned, hide on a grey or blue locker!")
             end
-            if pt and not prevTrans then
+            if playingTransition and not prevTrans then
                 alertNotify(entity, " will check gray lockers now, hide in a blue locker or table!")
             end
         end
-        prevSpawn, prevTrans = ps, pt
+        prevSpawn, prevTrans = playingSpawn, playingTransition
         task.wait(0.1)
     end
 end
@@ -1289,12 +1474,14 @@ end
 local function onEntitySpawned(entity)
     if isAlertIgnored(entity.Name) then return end
     TrackerEvents.spawned = entity.Name
+
     local key = normalizeName(entity.Name)
     if key == "g-100" then
         task.spawn(watchG100, entity)
         return
     end
     if not AlertOn then return end
+
     task.spawn(function()
         task.wait(0.15)
         if not entity.Parent then return end
@@ -1308,23 +1495,22 @@ local function onEntityRemoved(entity)
 end
 
 do
-    local known = {}
-    local firstPass = true
+    local known, firstPass = {}, true
     task.spawn(function()
         while ScreenGui.Parent do
             pcall(function()
                 local current = {}
-                for _, e in ipairs(getEntities()) do
-                    current[e] = true
-                    if not known[e] then
-                        known[e] = true
-                        if not firstPass then onEntitySpawned(e) end
+                for _, entity in ipairs(getEntities()) do
+                    current[entity] = true
+                    if not known[entity] then
+                        known[entity] = true
+                        if not firstPass then onEntitySpawned(entity) end
                     end
                 end
-                for e in pairs(known) do
-                    if not current[e] then
-                        known[e] = nil
-                        onEntityRemoved(e)
+                for entity in pairs(known) do
+                    if not current[entity] then
+                        known[entity] = nil
+                        onEntityRemoved(entity)
                     end
                 end
                 firstPass = false
@@ -1334,11 +1520,9 @@ do
     end)
 end
 
-local function setAlert(v) AlertOn = v end
-
-----------------------------------------------------------------------
--- LOGICA: SPEED + NOCLIP
-----------------------------------------------------------------------
+local function setAlert(value)
+    AlertOn = value
+end
 
 local Speed = { value = nil, default = 16 }
 
@@ -1378,10 +1562,6 @@ local function setNoclip(v)
     end
 end
 
-----------------------------------------------------------------------
--- LOGICA: FULLBRIGHT
-----------------------------------------------------------------------
-
 local setFullbright
 do
 local FB = { conn = nil, saved = {}, atm = {} }
@@ -1417,10 +1597,6 @@ function setFullbright(v)
     end
 end
 end
-
-----------------------------------------------------------------------
--- LOGICA: ANTI-VOID (chao invisivel no seu pe)
-----------------------------------------------------------------------
 
 local setAntiVoid
 do
@@ -1502,27 +1678,24 @@ function setAntiVoid(v)
 end
 end
 
-----------------------------------------------------------------------
--- LOGICA: DELETE SHAKER
-----------------------------------------------------------------------
-
-local ShakerState = { conn = nil }
+-- Shaker: toggle ON = screen shake disabled, OFF = shakers enabled again (nothing is deleted)
+local Shaker = { on = false, saved = {}, conn = nil }
 
 local function isShaker(o)
-    return o:IsA("LuaSourceContainer") and string.lower(o.Name) == "shaker"
+    return o:IsA("BaseScript") and string.lower(o.Name) == "shaker"
 end
 
-local function killShaker(o)
-    pcall(function() if o:IsA("BaseScript") then o.Disabled = true end end)
-    pcall(function() o:Destroy() end)
+local function shakerDisable(o)
+    if Shaker.saved[o] == nil then Shaker.saved[o] = o.Disabled end
+    pcall(function() o.Disabled = true end)
 end
 
-local function deleteAllShakers()
+local function sweepShakers()
     local n = 0
     local function sweep(list)
         for _, o in ipairs(list) do
             if isShaker(o) then
-                killShaker(o)
+                shakerDisable(o)
                 n += 1
             end
         end
@@ -1536,146 +1709,25 @@ local function deleteAllShakers()
     return n
 end
 
-local function activateShakerDelete()
-    local n = deleteAllShakers()
-    if not ShakerState.conn then
-        ShakerState.conn = bind(game.DescendantAdded, function(o)
-            task.defer(function()
-                if isShaker(o) then killShaker(o) end
-            end)
-        end)
-    end
-    notify(string.format("<b>Shaker</b> removed (%d found). Screen shake is gone for good.", n), Theme.on, 4)
-end
-
-local function showShakerDialog()
-    Dialog.show({
-        title = "Delete Shaker",
-        body = 'This removes every "Shaker" script, so there will be <b>no more screen shake</b>. It <b>cannot be undone</b>.',
-        bar = Theme.danger, confirmText = "Activate", confirmBg = Theme.danger, confirmFg = Color3.new(1, 1, 1),
-        onConfirm = activateShakerDelete,
-    })
-end
-
-----------------------------------------------------------------------
--- LOGICA: CAMERA (MAX ZOOM, NOCLIP CAMERA) + X-RAY
-----------------------------------------------------------------------
-
-local Extra = {
-    zoom = nil, zoomDefault = nil, occSaved = nil, camConn = nil, zoomConn = nil,
-    xray = { on = false, level = 0.65, parts = {}, conn = nil, rconn = nil, token = 0 },
-}
-
-function Extra.applyZoom(text)
-    local n = tonumber(text)
-    if n and n > 0 then
-        if Extra.zoomDefault == nil then Extra.zoomDefault = LocalPlayer.CameraMaxZoomDistance end
-        Extra.zoom = math.clamp(n, 0.5, 100000)
-        pcall(function()
-            LocalPlayer.CameraMaxZoomDistance = Extra.zoom
-            if LocalPlayer.CameraMinZoomDistance > Extra.zoom then LocalPlayer.CameraMinZoomDistance = Extra.zoom end
-        end)
-        if not Extra.zoomConn then
-            Extra.zoomConn = bind(RunService.RenderStepped, function()
-                if Extra.zoom and LocalPlayer.CameraMaxZoomDistance ~= Extra.zoom then
-                    pcall(function() LocalPlayer.CameraMaxZoomDistance = Extra.zoom end)
-                end
-            end)
-        end
-        notify("Max zoom set to <b>" .. Extra.zoom .. "</b>", Theme.on)
-    else
-        Extra.zoom = nil
-        if Extra.zoomConn then Extra.zoomConn:Disconnect() Extra.zoomConn = nil end
-        if Extra.zoomDefault then
-            pcall(function() LocalPlayer.CameraMaxZoomDistance = Extra.zoomDefault end)
-            notify("Max zoom reset to <b>" .. Extra.zoomDefault .. "</b>", Theme.accent2)
-            Extra.zoomDefault = nil
-        end
-    end
-end
-
--- Noclip Camera: Invisicam desliga o Popper (camera atravessa paredes)
-function Extra.setCamNoclip(v)
-    if Extra.camConn then Extra.camConn:Disconnect() Extra.camConn = nil end
+local function setShaker(v)
+    Shaker.on = v
+    if Shaker.conn then Shaker.conn:Disconnect() Shaker.conn = nil end
     if v then
-        if Extra.occSaved == nil then Extra.occSaved = LocalPlayer.DevCameraOcclusionMode end
-        local function apply()
-            if LocalPlayer.DevCameraOcclusionMode ~= Enum.DevCameraOcclusionMode.Invisicam then
-                pcall(function() LocalPlayer.DevCameraOcclusionMode = Enum.DevCameraOcclusionMode.Invisicam end)
-            end
-        end
-        Extra.camConn = bind(RunService.RenderStepped, apply)
-        apply()
-    elseif Extra.occSaved ~= nil then
-        local saved = Extra.occSaved
-        Extra.occSaved = nil
-        pcall(function() LocalPlayer.DevCameraOcclusionMode = saved end)
-    end
-end
-
-function Extra.xrayTarget(d)
-    if not d:IsA("BasePart") or d:IsA("Terrain") then return false end
-    if d.Transparency >= 0.95 then return false end
-    local char = LocalPlayer.Character
-    if char and d:IsDescendantOf(char) then return false end
-    local ent = Workspace:FindFirstChild("Entities")
-    if ent and d:IsDescendantOf(ent) then return false end
-    local m = d:FindFirstAncestorOfClass("Model")
-    if m and m:FindFirstChildOfClass("Humanoid") then return false end
-    return true
-end
-
-function Extra.setXray(v)
-    local x = Extra.xray
-    x.token += 1
-    local token = x.token
-    x.on = v
-    if x.conn then x.conn:Disconnect() x.conn = nil end
-    if x.rconn then x.rconn:Disconnect() x.rconn = nil end
-
-    if v then
-        local parts = {}
-        x.parts = parts
-        local function apply(d)
-            if parts[d] == nil then
-                local ok, orig = pcall(function() return d.LocalTransparencyModifier end)
-                parts[d] = (ok and orig) or 0
-            end
-            pcall(function() d.LocalTransparencyModifier = x.level end)
-        end
-        x.conn = bind(Workspace.DescendantAdded, function(d)
+        local n = sweepShakers()
+        Shaker.conn = bind(game.DescendantAdded, function(o)
             task.defer(function()
-                if x.token == token and d.Parent and Extra.xrayTarget(d) then apply(d) end
+                if Shaker.on and o.Parent and isShaker(o) then shakerDisable(o) end
             end)
         end)
-        x.rconn = bind(Workspace.DescendantRemoving, function(d)
-            local orig = parts[d]
-            if orig ~= nil then
-                parts[d] = nil
-                pcall(function() d.LocalTransparencyModifier = orig end)
-            end
-        end)
-        task.spawn(function()
-            local n = 0
-            for _, d in ipairs(Workspace:GetDescendants()) do
-                if x.token ~= token then return end
-                if Extra.xrayTarget(d) then apply(d) end
-                n += 1
-                if n % 1500 == 0 then task.wait() end
-            end
-        end)
+        notify(string.format("<b>Shaker</b> disabled (%d found).", n), Theme.on, 3)
     else
-        local parts = x.parts
-        x.parts = {}
-        for part, orig in pairs(parts) do
-            pcall(function() part.LocalTransparencyModifier = orig end)
+        for o, wasDisabled in pairs(Shaker.saved) do
+            pcall(function() o.Disabled = wasDisabled end)
         end
+        Shaker.saved = {}
+        notify("<b>Shaker</b> enabled again.", Theme.accent2, 3)
     end
 end
-
-----------------------------------------------------------------------
--- LOGICA: PORTAS (Workspace.CurrentRoomsX.<numero>.door)
-----------------------------------------------------------------------
 
 local function getSections()
     local out = {}
@@ -1726,23 +1778,68 @@ local function getDoorPrompts(room)
     return list
 end
 
-local Stats = { sections = 0, rooms = 0 }
+local lastFire = setmetatable({}, { __mode = "k" })
+
+local function triggerPrompt(prompt)
+    local oldDist = prompt.MaxActivationDistance
+    pcall(function()
+        prompt.HoldDuration = 0
+        prompt.RequiresLineOfSight = false
+        prompt.MaxActivationDistance = math.max(oldDist, 1000)
+    end)
+    local ok = false
+    if fireproximityprompt then
+        ok = pcall(fireproximityprompt, prompt)
+    end
+    if not ok then
+        task.spawn(function()
+            pcall(function()
+                prompt:InputHoldBegin()
+                task.wait(0.05)
+                prompt:InputHoldEnd()
+            end)
+        end)
+    end
+    task.delay(0.4, function()
+        pcall(function() prompt.MaxActivationDistance = oldDist end)
+    end)
+end
+
+local function firePrompt(prompt)
+    local now = os.clock()
+    local last = lastFire[prompt]
+    if not last or (prompt.Enabled and now - last >= RETRY_AFTER) then
+        lastFire[prompt] = now
+        triggerPrompt(prompt)
+        return true
+    end
+    return false
+end
+
+local Auto = { doors = false }
+local Stats = { sections = 0, rooms = 0, fired = 0 }
 
 task.spawn(function()
     while ScreenGui.Parent do
         pcall(function()
             local sections = getSections()
             local rooms = 0
-            for _, s in ipairs(sections) do rooms += #getNumberedRooms(s.folder) end
+            for _, s in ipairs(sections) do
+                local list = getNumberedRooms(s.folder)
+                rooms += #list
+                if Auto.doors and not IS_BLOCKED then
+                    for _, r in ipairs(list) do
+                        for _, p in ipairs(getDoorPrompts(r.inst)) do
+                            if p.Parent and firePrompt(p) then Stats.fired += 1 end
+                        end
+                    end
+                end
+            end
             Stats.sections, Stats.rooms = #sections, rooms
         end)
-        task.wait(0.5)
+        task.wait(0.25)
     end
 end)
-
-----------------------------------------------------------------------
--- LOGICA: TELEPORT PARA A SALA ATUAL
-----------------------------------------------------------------------
 
 local function doorFrame(door)
     if door:IsA("BasePart") then return door.CFrame, door.Size end
@@ -1752,7 +1849,6 @@ local function doorFrame(door)
     return nil
 end
 
--- sala cuja porta o script esta abrindo agora: a de MAIOR numero com prompt ativo
 local function getPendingRoom()
     local best, fallback
     for _, s in ipairs(getSections()) do
@@ -1854,10 +1950,6 @@ local function teleportToLastRoom()
     notify(string.format("At the door of room <b>%d</b> (section <b>%s</b>).", t.num, t.id), Theme.on)
 end
 
-----------------------------------------------------------------------
--- LOGICA: ITEMS (teleports fixos)
-----------------------------------------------------------------------
-
 local ITEM_POS = {
     medicine   = Vector3.new(-47.579, 3.500, -51.043),
     blacklight = Vector3.new(-39.167, 3.500, 26.813),
@@ -1905,17 +1997,300 @@ local function itemWarning(titleRich, sectionName, sectionColor, outline, bar, p
     })
 end
 
+local AutoHide = {
+    on = false, side = -1, origin = nil, moved = false,
+    handled = setmetatable({}, { __mode = "k" }),
+    track   = setmetatable({}, { __mode = "k" }),
+    sizes   = setmetatable({}, { __mode = "k" }),
+    list = {}, listT = 0,
+    clearSince = nil, hold = nil,
+    CLEAR_RADIUS = 1000,
+    CLEAR_TIME = 8,
+    PROMPT_TIME = 30,
+    asked = false, prompt = nil,
+    REACT_TIME = 0.9,
+    SPEED_CAP = 4000,
+    FAST_SPEED = 150,
+    HOLD_TIME = 0.6,
+}
+
+local STRONG_AIM_ENTITIES = { ["b-85"] = true, ["a-75"] = true }
+local LIGHT_AIM_ENTITIES = {
+    ["b-200"] = true, ["a-200"] = true, ["g-26"] = true,
+    ["jack-o-26"] = true, ["cg-26"] = true,
+}
+local G159_NAME, G159_OFFSET = "g-159", 350
+
 local function isThreatEntity(entity)
     return not isAlertIgnored(entity.Name) and not isEspIgnored(entity.Name)
 end
 
-----------------------------------------------------------------------
--- LOGICA: MODES (checkpoint gamemodes + kill part + jumpscares)
-----------------------------------------------------------------------
+local function getAutoHideProfile(entity)
+    local low = string.lower(entity.Name)
+    if low == G159_NAME then
+        return G159_OFFSET, math.huge, "G-159 appeared, throwing you away from him.", true
+    elseif low == "a-332" then
+        return 6000, 450, "A-332 has a very powerful aimscript, throwing you 6,000 meters...", false
+    elseif STRONG_AIM_ENTITIES[low] then
+        return 5000, 250, string.format("%s has a strong aimscript, we put you at 5000 meters.", entity.Name), false
+    elseif LIGHT_AIM_ENTITIES[low] then
+        return 1000, 250, string.format("%s has a light aimscript, stay within 1000 meters.", entity.Name), false
+    end
+    return 300, 140, string.format("%s does not have an aimscript, stay around up to 140 meters, as some entity can kill you in its hitbox.", entity.Name), false
+end
+
+function AutoHide.isLongRange(entity)
+    local low = string.lower(entity.Name)
+    return low == "a-332" or STRONG_AIM_ENTITIES[low] == true or LIGHT_AIM_ENTITIES[low] == true
+end
+
+function AutoHide.hideOffsetFor(entity, speed)
+    local offset, trigger, message, always = getAutoHideProfile(entity)
+    if not always and speed >= AutoHide.FAST_SPEED and AutoHide.isLongRange(entity) then
+        local needed = math.min(8000, speed * 1.5 + 200)
+        if needed > offset then
+            offset = math.floor(needed)
+            message = string.format("%s is massively fast (~%d studs/s), throwing you %d meters away.",
+                entity.Name, math.floor(speed), offset)
+        end
+    end
+    return offset, trigger, message, always
+end
+
+function AutoHide.sampleEntity(entity, now)
+    local ok, pos = pcall(entityPos, entity)
+    if not ok or typeof(pos) ~= "Vector3" then return end
+    local t = AutoHide.track[entity]
+    if not t then
+        AutoHide.track[entity] = { pos = pos, t = now, speed = 0, prev = 0 }
+        return
+    end
+    local dt = now - t.t
+    if dt <= 0.001 then return end
+    local inst = (dt > 0.5) and 0 or math.min((pos - t.pos).Magnitude / dt, AutoHide.SPEED_CAP)
+    local eff = math.min(inst, t.prev)
+    t.prev = inst
+    t.speed = (eff > t.speed) and eff or (t.speed * 0.92 + eff * 0.08)
+    t.pos, t.t = pos, now
+end
+
+function AutoHide.entityRadius(entity, now)
+    local c = AutoHide.sizes[entity]
+    if not c or now - c.t > 1 then
+        local r = 0
+        pcall(function()
+            if entity:IsA("Model") then r = entity:GetExtentsSize().Magnitude / 2
+            elseif entity:IsA("BasePart") then r = entity.Size.Magnitude / 2 end
+        end)
+        c = { r = math.min(r, 400), t = now }
+        AutoHide.sizes[entity] = c
+    end
+    return c.r
+end
+
+function AutoHide.refreshHideEntities(now)
+    if now - AutoHide.listT >= 0.1 then
+        AutoHide.list, AutoHide.listT = getAllEntities(), now
+    end
+    for _, e in ipairs(AutoHide.list) do
+        if e.Parent then AutoHide.sampleEntity(e, now) end
+    end
+end
+
+local function findThreatNear(position, radius, enforceProfileRadius, now)
+    local bestEntity, bestDist, bestOffset
+    for _, entity in ipairs(AutoHide.list) do
+        pcall(function()
+            if entity.Parent and isThreatEntity(entity) then
+                local ok, pos = pcall(entityPos, entity)
+                if not ok or typeof(pos) ~= "Vector3" then
+                    local rootOk, root = pcall(getRoot, entity)
+                    pos = (rootOk and root) and root.Position or nil
+                end
+                if pos then
+                    local long = AutoHide.isLongRange(entity)
+                    local tr = AutoHide.track[entity]
+                    local speed = (long and tr) and tr.speed or 0
+                    local dist = (pos - position).Magnitude
+                    if long then dist = math.max(0, dist - AutoHide.entityRadius(entity, now)) end
+                    local offset, trigger, _, always = AutoHide.hideOffsetFor(entity, speed)
+                    local eligible
+                    if always then
+                        eligible = (not enforceProfileRadius) or not AutoHide.handled[entity]
+                    elseif enforceProfileRadius then
+                        eligible = dist <= trigger + speed * AutoHide.REACT_TIME
+                    else
+                        eligible = dist <= radius
+                    end
+                    if eligible and (not bestEntity or offset > bestOffset or (offset == bestOffset and dist < bestDist)) then
+                        bestEntity, bestDist, bestOffset = entity, dist, offset
+                    end
+                end
+            end
+        end)
+    end
+    return bestEntity, bestDist
+end
+
+function AutoHide.anyThreatWithin(position, radius)
+    for _, entity in ipairs(AutoHide.list) do
+        if entity.Parent and isThreatEntity(entity) then
+            local ok, pos = pcall(entityPos, entity)
+            if ok and typeof(pos) == "Vector3" and (pos - position).Magnitude <= radius then
+                return true
+            end
+        end
+    end
+    return false
+end
+
+function AutoHide.closePrompt()
+    local p = AutoHide.prompt
+    if not p then return end
+    AutoHide.prompt = nil
+    tween(p.card, 0.25, { GroupTransparency = 1, Position = UDim2.new(0.5, 0, 0, 186) })
+    task.delay(0.3, function() if p.card.Parent then p.card:Destroy() end end)
+end
+
+function AutoHide.showPrompt(onYes, onNo)
+    if AutoHide.prompt then return end
+    local w = math.clamp(vp.X - 40, 240, 330)
+    local card = create("CanvasGroup", {
+        Name = "TeleportPrompt", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 206),
+        Size = UDim2.fromOffset(w, 128), BackgroundColor3 = Theme.card, GroupTransparency = 1,
+        ZIndex = 20, Parent = ScreenGui,
+    }, { corner(12), stroke(Theme.stroke, 1, 0) })
+    label({
+        Text = "No entity was found within 1000 meters, do you want to teleport to current room?",
+        TextSize = 12, Font = FONT_MED, TextWrapped = true, TextTruncate = Enum.TextTruncate.None,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        Position = UDim2.fromOffset(14, 10), Size = UDim2.new(1, -28, 0, 40), Parent = card,
+    })
+    local function btn(text, bg, fg, right)
+        return create("TextButton", {
+            Text = text, TextSize = 14, Font = FONT_BOLD, TextColor3 = fg, AutoButtonColor = false,
+            AnchorPoint = Vector2.new(right and 1 or 0, 0),
+            Position = UDim2.new(right and 1 or 0, right and -14 or 14, 0, 66),
+            Size = UDim2.new(0.5, -21, 0, 34), BackgroundColor3 = bg, BorderSizePixel = 0, Parent = card,
+        }, { corner(9) })
+    end
+    local yes = btn("Yes", Theme.accent, WHITE, false)
+    local nah = btn("Nah", Theme.cardHi, Theme.text, true)
+    tapFx(yes, Theme.accent, Color3.fromRGB(110, 70, 210))
+    tapFx(nah, Theme.cardHi, Theme.stroke)
+    local track = create("Frame", {
+        Position = UDim2.new(0, 14, 1, -10), Size = UDim2.new(1, -28, 0, 2), BackgroundColor3 = Theme.stroke,
+        BackgroundTransparency = 0.4, BorderSizePixel = 0, Parent = card,
+    }, { pill() })
+    local bar = create("Frame", {
+        Size = UDim2.fromScale(1, 1), BackgroundColor3 = Theme.accent, BorderSizePixel = 0, Parent = track,
+    }, { pill() })
+
+    local p = { card = card }
+    AutoHide.prompt = p
+    tween(card, 0.4, { GroupTransparency = 0, Position = UDim2.new(0.5, 0, 0, 196) }, Enum.EasingStyle.Back)
+    tween(bar, AutoHide.PROMPT_TIME, { Size = UDim2.fromScale(0, 1) }, Enum.EasingStyle.Linear)
+
+    yes.Activated:Connect(function()
+        if AutoHide.prompt ~= p then return end
+        AutoHide.closePrompt()
+        task.spawn(onYes)
+    end)
+    nah.Activated:Connect(function()
+        if AutoHide.prompt == p then
+            AutoHide.closePrompt()
+            if onNo then onNo() end
+        end
+    end)
+    task.delay(AutoHide.PROMPT_TIME, function()
+        if AutoHide.prompt == p then
+            AutoHide.closePrompt()
+            if onNo then onNo() end
+        end
+    end)
+end
+
+function AutoHide.autoHideStep()
+    if not AutoHide.on or IS_BLOCKED then
+        AutoHide.clearSince, AutoHide.asked = nil, false
+        AutoHide.closePrompt()
+        return
+    end
+    local hrp = getHRP()
+    if not hrp then return end
+    local now = os.clock()
+    AutoHide.refreshHideEntities(now)
+
+    local hold = AutoHide.hold
+    if hold then
+        if now >= hold.untilT then
+            AutoHide.hold = nil
+        elseif (hrp.Position - hold.cf.Position).Magnitude > 20 then
+            hrp.AssemblyLinearVelocity = Vector3.zero
+            hrp.AssemblyAngularVelocity = Vector3.zero
+            hrp.CFrame = hold.cf
+        end
+    end
+
+    local threat = findThreatNear(hrp.Position, 0, true, now)
+    if threat then
+        AutoHide.clearSince, AutoHide.asked = nil, false
+        AutoHide.closePrompt()
+        local tr = AutoHide.track[threat]
+        local offset, _, message, always = AutoHide.hideOffsetFor(threat, tr and tr.speed or 0)
+        if not AutoHide.moved or not AutoHide.origin then
+            AutoHide.origin = hrp.CFrame
+        end
+
+        local dir = AutoHide.side
+        if always then
+            AutoHide.handled[threat] = true
+            local okPos, epos = pcall(entityPos, threat)
+            if okPos and typeof(epos) == "Vector3" then
+                local dx = hrp.Position.X - epos.X
+                if math.abs(dx) > 1 then dir = dx > 0 and 1 or -1 end
+            end
+        end
+
+        local cur = hrp.CFrame
+        local newCF = CFrame.new(hrp.Position + Vector3.new(dir * offset, 0, 0)) * (cur - cur.Position)
+        hrp.AssemblyLinearVelocity = Vector3.zero
+        hrp.AssemblyAngularVelocity = Vector3.zero
+        hrp.CFrame = newCF
+        AutoHide.hold = AutoHide.isLongRange(threat) and { cf = newCF, untilT = now + AutoHide.HOLD_TIME } or nil
+        AutoHide.moved = true
+        notify(esc(message), Theme.warn, 4)
+        return
+    end
+
+    local near = AutoHide.anyThreatWithin(hrp.Position, AutoHide.CLEAR_RADIUS)
+    if not near and AutoHide.moved and AutoHide.origin then
+        near = AutoHide.anyThreatWithin(AutoHide.origin.Position, AutoHide.CLEAR_RADIUS)
+    end
+    if near then
+        AutoHide.clearSince, AutoHide.asked = nil, false
+        AutoHide.closePrompt()
+    else
+        AutoHide.clearSince = AutoHide.clearSince or now
+        if not AutoHide.asked and not AutoHide.prompt and now - AutoHide.clearSince >= AutoHide.CLEAR_TIME then
+            AutoHide.asked = true
+            AutoHide.showPrompt(function()
+                AutoHide.origin, AutoHide.moved, AutoHide.hold = nil, false, nil
+                task.spawn(teleportToLastRoom)
+            end, function()
+                AutoHide.origin, AutoHide.moved, AutoHide.hold = nil, false, nil
+            end)
+        end
+    end
+end
+
+bind(RunService.Heartbeat, function()
+    local ok, err = pcall(AutoHide.autoHideStep)
+    if not ok then warn("[WTRALD AutoHide] " .. tostring(err)) end
+end)
 
 local MODES = { "BRAZIL", "burbur", "fish", "hard", "insane", "lobotomy", "thecantloupe" }
 
--- workspace.CurrentRoomsA["1"].NewestCheckpoint.gamemodes
 local function getGamemodes()
     local a = Workspace:FindFirstChild("CurrentRoomsA")
     local r1 = a and a:FindFirstChild("1")
@@ -1935,7 +2310,87 @@ local function findMode(name)
     return nil
 end
 
--- the part that kills: workspace["CurrentRooms?"]["10"]["the part that kills"] (e equivalentes)
+local function modeText(inst)
+    local t = inst:FindFirstChild("txt", true)
+    if not t then return nil end
+    local ok, s = pcall(function()
+        if t:IsA("TextLabel") or t:IsA("TextBox") or t:IsA("TextButton") then return t.Text end
+        local x = t:FindFirstChildWhichIsA("TextLabel", true) or t:FindFirstChildWhichIsA("TextBox", true)
+        return x and x.Text or nil
+    end)
+    if ok and type(s) == "string" and s ~= "" then return s end
+    return nil
+end
+
+local function modePivot(inst)
+    if inst:IsA("Model") then return inst:GetPivot().Position end
+    if inst:IsA("BasePart") then return inst.Position end
+    local p = inst:FindFirstChildWhichIsA("BasePart", true)
+    return p and p.Position or nil
+end
+
+local function activateMode(name)
+    if IS_BLOCKED then
+        notify("<b>Modes</b> are blocked for your account.", Theme.danger, 3)
+        return
+    end
+    local inst = findMode(name)
+    if not inst then
+        notify("Mode <b>" .. esc(name) .. "</b> not found (is the checkpoint loaded?).", Theme.warn)
+        return
+    end
+    local hrp = getHRP()
+    local fired = 0
+    local all = inst:GetDescendants()
+    table.insert(all, 1, inst)
+    for _, d in ipairs(all) do
+        if d:IsA("ProximityPrompt") and fireproximityprompt then
+            pcall(function()
+                d.HoldDuration = 0
+                d.RequiresLineOfSight = false
+                fireproximityprompt(d)
+            end)
+            fired += 1
+        elseif d:IsA("ClickDetector") and fireclickdetector then
+            if pcall(fireclickdetector, d) then fired += 1 end
+        elseif d:IsA("BasePart") and hrp and firetouchinterest and d:FindFirstChildOfClass("TouchInterest") then
+            pcall(function()
+                firetouchinterest(hrp, d, 0)
+                firetouchinterest(hrp, d, 1)
+            end)
+            fired += 1
+        end
+    end
+    if fired > 0 then
+        notify("Mode <b>" .. esc(name) .. "</b> activated (" .. fired .. " trigger" .. (fired > 1 and "s" or "") .. ").", Theme.on)
+        return
+    end
+    local pos = modePivot(inst)
+    if hrp and pos then
+        hrp.AssemblyLinearVelocity = Vector3.zero
+        hrp.CFrame = CFrame.new(pos + Vector3.new(0, 4, 0))
+        notify("No trigger found in <b>" .. esc(name) .. "</b> — teleported next to it.", Theme.warn)
+    else
+        notify("Nothing to trigger in <b>" .. esc(name) .. "</b>.", Theme.warn)
+    end
+end
+
+local function confirmMode(name)
+    if IS_BLOCKED then
+        notify("<b>Modes</b> are blocked for your account.", Theme.danger, 3)
+        return
+    end
+    local inst = findMode(name)
+    local txt = inst and modeText(inst)
+    Dialog.show({
+        title = "Activate <b>" .. esc(name) .. "</b>",
+        body = "Fires the mode's prompt / click / touch (or teleports next to it if there is none)."
+            .. (txt and ('\nSign says: <b>' .. esc(txt) .. '</b>') or ""),
+        bar = Theme.accent, confirmText = "Activate", confirmBg = Theme.accent, confirmFg = WHITE,
+        onConfirm = function() activateMode(name) end,
+    })
+end
+
 local Kill = { on = false, saved = setmetatable({}, { __mode = "k" }), count = 0 }
 
 local function findKillParts()
@@ -1988,7 +2443,6 @@ task.spawn(function()
     end
 end)
 
--- Jumpscares: LocalPlayer.PlayerGui.Jumpscares
 local Jump = { on = false, saved = setmetatable({}, { __mode = "k" }), conn = nil }
 
 local function jumpGui()
@@ -2039,17 +2493,67 @@ local function setJumpBlock(v)
     end
 end
 
-----------------------------------------------------------------------
--- UI: CONTEUDO DAS ABAS
-----------------------------------------------------------------------
+-- Auto Pick Freddies Plush
+local Plush = { on = false, found = 0 }
+do
+local last = setmetatable({}, { __mode = "k" })
 
--- Doors
+local function plushMatch(cd)
+    local inst, depth = cd, 0
+    while inst and inst ~= Workspace and depth < 6 do
+        local low = string.lower(inst.Name)
+        if low == "boundingbox" or string.find(low, "freddy", 1, true) then return true end
+        inst, depth = inst.Parent, depth + 1
+    end
+    return false
+end
+
+task.spawn(function()
+    while ScreenGui.Parent do
+        if Plush.on and fireclickdetector then
+            pcall(function()
+                local found, n = 0, 0
+                for _, d in ipairs(Workspace:GetDescendants()) do
+                    n += 1
+                    if n % 3000 == 0 then task.wait() end
+                    if not Plush.on then break end
+                    if d:IsA("ClickDetector") and plushMatch(d) then
+                        found += 1
+                        local t = last[d]
+                        if not t or os.clock() - t > 2 then
+                            last[d] = os.clock()
+                            pcall(function() d.MaxActivationDistance = 1e6 end)
+                            pcall(fireclickdetector, d)
+                        end
+                    end
+                end
+                Plush.found = found
+            end)
+        end
+        task.wait(1)
+    end
+end)
+end
+
 local P = pages.Doors
 sectionLabel(P, "Doors")
+Blk.doors = makeToggle(P, "Auto-Open Doors", "Opens doors in room order", function(v)
+    if v and IS_BLOCKED then
+        Blk.doors.Set(false, true)
+        notify("<b>Auto-Open Doors</b> is blocked for your account.", Theme.danger, 3)
+        return
+    end
+    Auto.doors = v
+    if v then
+        if not fireproximityprompt then
+            notify("Executor without <b>fireproximityprompt</b> - using fallback.", Theme.warn, 5)
+        end
+        notify("Auto-Open Doors <b>enabled</b>.", Theme.on, 2.5)
+    end
+end)
 makeButton(P, "Teleport to current room", "Move to the room currently being opened", teleportToLastRoom)
 local setDoorStat = makeStat(P, "Status")
 
--- ESP
 P = pages.ESP
 sectionLabel(P, "Entities")
 makeToggle(P, "ESP Entities", "Name, distance and light color", setESP)
@@ -2059,7 +2563,21 @@ local setEspStat = makeStat(P, "Tracking")
 sectionLabel(P, "Alerts")
 makeToggle(P, "Alert Entities", "Notify when an entity spawns", setAlert)
 
--- Tracker
+sectionLabel(P, "Auto Hide")
+Blk.hide = makeToggle(P, "Auto-Hide from entity", "Sidesteps lethal entities, G-159 on spawn", function(v)
+    if v and IS_BLOCKED then
+        Blk.hide.Set(false, true)
+        notify("<b>Auto-Hide</b> is blocked for your account.", Theme.danger, 3)
+        return
+    end
+    AutoHide.on = v
+    if not v then AutoHide.origin, AutoHide.moved, AutoHide.hold = nil, false, nil end
+end)
+makeButton(P, "Switch hide side", "Choose left or right (never forward/back)", function()
+    AutoHide.side = -AutoHide.side
+    notify("Auto hide side: <b>" .. (AutoHide.side < 0 and "Left" or "Right") .. "</b>.", Theme.accent)
+end)
+
 P = pages.Tracker
 local TRACKER_RANGE = 1000
 sectionLabel(P, "Threat radar")
@@ -2068,7 +2586,6 @@ local setTrackerBar = makeEntityBar(P, "Entity map")
 sectionLabel(P, "Activity")
 local setTrackerSpawn, setTrackerDespawn = makeDualStat(P, "Last spawned", "Last despawned")
 
--- Items
 P = pages.Items
 local function posText(v)
     return string.format("%.1f, %.1f, %.1f", v.X, v.Y, v.Z)
@@ -2105,7 +2622,16 @@ makeButton(P,
     function() teleportToPos(ITEM_POS.delux, "Delux Flashlight") end,
     false, true)
 
--- Player
+sectionLabel(P, "Auto")
+makeToggle(P, "Auto Pick Freddies Plush", "ClickDetectors: Freddy / BOUNDINGBOX", function(v)
+    Plush.on = v
+    if v and not fireclickdetector then
+        notify("Executor without <b>fireclickdetector</b>.", Theme.warn, 4)
+    elseif v then
+        notify("Auto Pick Freddies Plush <b>enabled</b>.", Theme.on, 2.5)
+    end
+end)
+
 P = pages.Player
 sectionLabel(P, "Movement")
 makeInput(P, "Change Speed", "Number (empty = reset)", applySpeed)
@@ -2114,37 +2640,337 @@ makeToggle(P, "Anti-Void", "Invisible floor if you fall", setAntiVoid)
 
 sectionLabel(P, "World")
 makeToggle(P, "Fullbright", "Bright map, no fog", setFullbright)
-makeButton(P, "Delete Shaker", "Removes screen shake for good", showShakerDialog, true)
-
-sectionLabel(P, "Camera")
-makeInput(P, "Max Zoom", "Number (empty = reset)", Extra.applyZoom)
-makeToggle(P, "Noclip Camera", "Camera passes through walls (Popper off)", Extra.setCamNoclip)
-makeToggle(P, "X-Ray", "See through walls and doors", Extra.setXray)
-
--- Modes
-P = pages.Modes
-sectionLabel(P, "Checkpoint gamemodes")
-local setModesStatus = makeStatus(P, "Gamemodes folder")
+makeToggle(P, "Disable Shaker", "Screen shake off (turn off to restore it)", setShaker)
 
 sectionLabel(P, "Hazards")
 makeToggle(P, "Disable kill part", "\"the part that kills\" (client-side)", setKillOff)
 local setKillStat = makeStat(P, "Kill parts found")
 makeToggle(P, "Block Jumpscares", "Hides PlayerGui.Jumpscares + sounds", setJumpBlock)
-makeParagraph(P, "Entities <b>1-A</b>, <b>1-B</b> and <b>1-G</b> are ignored by alerts, tracker and spectate. The kill-part toggle only works if the game checks the touch on your client.", 74)
 
--- Script
+P = pages.Modes
+sectionLabel(P, "Checkpoint gamemodes")
+local setModesStatus = makeStatus(P, "Gamemodes folder")
+for _, m in ipairs(MODES) do
+    makeButton(P, "Activate " .. m, "Checkpoint game mode", function() confirmMode(m) end)
+end
+makeParagraph(P, "Entities <b>1-A</b>, <b>1-B</b> and <b>1-G</b> are ignored by alerts, auto-hide, tracker and spectate.", 54)
+
+-- Chat tab: Firebase Realtime Database (REST). Never touches the Roblox chat.
+local Chat = {
+    DB = "https://rld-chat-8b60b-default-rtdb.firebaseio.com/",
+    HOST = "Web_Julio9",
+    BAD_WORDS = { "porra", "caralho", "puta", "fdp", "merda", "fuck", "shit", "bitch" },
+    running = false, msgs = {}, order = {}, dbIds = {}, seq = 0, users = {},
+    activeUntil = 0, errShown = false, loaded = false,
+    MAX_STRIKES = 20,      -- bad words OR rapid-fire messages before the kick
+    SPAM_GAP = 1,          -- messages closer than this (seconds) count as spam
+    KICK_MSG = "You have been kicked from this script, try not to swear again.",
+    strikes = 0, spam = 0, lastAttempt = 0,
+}
+Chat.isHost = (LocalPlayer.Name == Chat.HOST)
+Chat.http = (syn and syn.request) or http_request or request
+    or (http and http.request) or (fluxus and fluxus.request)
+
+do
+local HttpService = game:GetService("HttpService")
+
+P = pages.Chat
+sectionLabel(P, "Chat")
+local setChatUsers = makeStatus(P, "Chat status")
+
+local chatRow = baseRow(P, 190)
+local chatScroll = create("ScrollingFrame", {
+    Position = UDim2.fromOffset(8, 8), Size = UDim2.new(1, -16, 1, -16), BackgroundTransparency = 1,
+    BorderSizePixel = 0, ScrollBarThickness = 3, ScrollBarImageColor3 = Theme.accent,
+    CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, Parent = chatRow,
+}, {
+    create("UIListLayout", { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder }),
+    create("UIPadding", { PaddingRight = UDim.new(0, 6) }),
+})
+
+local inRow = baseRow(P, 52)
+local chatBox = create("TextBox", {
+    Text = "", PlaceholderText = "Message...", PlaceholderColor3 = Theme.sub, TextColor3 = Theme.text,
+    TextSize = 13, Font = FONT_MED, ClearTextOnFocus = false, TextXAlignment = Enum.TextXAlignment.Left,
+    Position = UDim2.fromOffset(12, 10), Size = UDim2.new(1, -86, 0, 32), BackgroundColor3 = Theme.cardHi,
+    BorderSizePixel = 0, Parent = inRow,
+}, { corner(8), create("UIPadding", { PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10) }) })
+local sendBtn = create("TextButton", {
+    Text = "Send", TextSize = 13, Font = FONT_BOLD, TextColor3 = Theme.accentText,
+    AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 10), Size = UDim2.fromOffset(56, 32),
+    BackgroundColor3 = WHITE, AutoButtonColor = false, BorderSizePixel = 0, Parent = inRow,
+}, { corner(8) })
+accentGrad(45).Parent = sendBtn
+
+-- one channel per server, so people only talk to those in the same server
+do
+    local jid = (game.JobId ~= "" and game.JobId) or tostring(game.PlaceId)
+    Chat.base = Chat.DB .. "chat/" .. (string.gsub(jid, "[^%w]", ""))
+end
+
+local function scrollDown()
+    task.defer(function()
+        task.wait()
+        chatScroll.CanvasPosition = Vector2.new(0, chatScroll.AbsoluteCanvasSize.Y)
+    end)
+end
+
+function Chat.isBad(text)
+    local low = string.lower(tostring(text or ""))
+    for _, w in ipairs(Chat.BAD_WORDS) do
+        if string.find(low, w, 1, true) then return true end
+    end
+    return false
+end
+
+-- Firebase REST helper: returns decoded JSON (or nil), HTTP status
+function Chat.req(method, path, body, query)
+    if not Chat.http then return nil, 0 end
+    local ok, res = pcall(Chat.http, {
+        Url = Chat.base .. path .. ".json" .. (query or ""),
+        Method = method,
+        Headers = { ["Content-Type"] = "application/json" },
+        Body = body ~= nil and HttpService:JSONEncode(body) or nil,
+    })
+    if not ok or type(res) ~= "table" then return nil, 0 end
+    local data
+    if type(res.Body) == "string" and res.Body ~= "" then
+        local ok2, d = pcall(function() return HttpService:JSONDecode(res.Body) end)
+        if ok2 then data = d end
+    end
+    return data, tonumber(res.StatusCode) or 0
+end
+
+-- messages ------------------------------------------------------------
+function Chat.removeMessage(id)
+    local m = Chat.msgs[id]
+    Chat.dbIds[id] = nil
+    if not m then return end
+    Chat.msgs[id] = nil
+    local i = table.find(Chat.order, id)
+    if i then table.remove(Chat.order, i) end
+    if m.frame.Parent then m.frame:Destroy() end
+end
+
+function Chat.addRow(id, richText, deletable)
+    Chat.seq += 1
+    local frame = create("Frame", {
+        Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1,
+        LayoutOrder = Chat.seq, Parent = chatScroll,
+    })
+    label({
+        Text = richText, RichText = true, TextSize = 12, TextWrapped = true,
+        TextYAlignment = Enum.TextYAlignment.Top,
+        Size = UDim2.new(1, deletable and -28 or 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, Parent = frame,
+    })
+    if deletable then
+        local del = create("TextButton", {
+            Text = "✕", TextSize = 12, Font = FONT_BOLD, TextColor3 = Theme.danger,
+            AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 0), Size = UDim2.fromOffset(22, 20),
+            BackgroundColor3 = Theme.cardHi, AutoButtonColor = false, BorderSizePixel = 0, Parent = frame,
+        }, { corner(6) })
+        del.Activated:Connect(function()
+            Chat.removeMessage(id)
+            task.spawn(Chat.req, "DELETE", "/messages/" .. id)
+        end)
+    end
+    table.insert(Chat.order, id)
+    Chat.msgs[id] = { frame = frame }
+    while #Chat.order > 150 do
+        local old = table.remove(Chat.order, 1)
+        local m = Chat.msgs[old]
+        Chat.msgs[old] = nil
+        Chat.dbIds[old] = nil
+        if m and m.frame.Parent then m.frame:Destroy() end
+    end
+    scrollDown()
+end
+
+function Chat.upsert(id, rec)
+    if Chat.msgs[id] or type(rec) ~= "table" then return end
+    local text = tostring(rec.m or "")
+    local uid = tonumber(rec.i)
+    if text == "" or not uid then return end
+
+    -- host removes bad words for everyone
+    if Chat.isHost and Chat.isBad(text) then
+        task.spawn(Chat.req, "DELETE", "/messages/" .. id)
+        return
+    end
+    if Chat.isBad(text) then return end
+
+    -- the name comes from the real player in the server, not from what the record claims
+    local plr = Players:GetPlayerByUserId(uid)
+    local name = plr and plr.Name or tostring(rec.u or "?")
+    local display = plr and plr.DisplayName or tostring(rec.d or "")
+    local who = (display ~= "" and display ~= name) and (display .. " (@" .. name .. ")") or name
+
+    Chat.dbIds[id] = true
+    local own = uid == LocalPlayer.UserId
+    Chat.addRow(id, "<b>" .. esc(who) .. "</b>: " .. esc(text), own or Chat.isHost)
+    if Chat.loaded and not own then
+        notify("New message!", Theme.accent2, 2.5, nil, true)
+    end
+end
+
+-- polling -------------------------------------------------------------
+function Chat.fail(status)
+    if status == 401 or status == 403 then
+        setChatUsers("Firebase: access denied (check rules)", Theme.danger)
+    else
+        setChatUsers("Connection problem (" .. tostring(status) .. ")", Theme.warn)
+    end
+end
+
+function Chat.poll()
+    local data, status = Chat.req("GET", "/messages", nil, '?orderBy=%22%24key%22&limitToLast=40')
+    if status ~= 200 then Chat.fail(status) return false end
+    local keys, set = {}, {}
+    if type(data) == "table" then
+        for k in pairs(data) do table.insert(keys, k) end
+        table.sort(keys)
+    end
+    for _, k in ipairs(keys) do
+        set[k] = true
+        local before = Chat.msgs[k] == nil
+        Chat.upsert(k, data[k])
+        if before and Chat.msgs[k] then Chat.activeUntil = os.clock() + 30 end
+    end
+    -- messages deleted on the database disappear here too
+    local minKey = keys[1]
+    for id in pairs(Chat.dbIds) do
+        if not set[id] and (not minKey or id >= minKey) then Chat.removeMessage(id) end
+    end
+    Chat.loaded = true
+    return true
+end
+
+function Chat.presence()
+    Chat.req("PUT", "/users/" .. LocalPlayer.UserId, { n = LocalPlayer.Name, t = os.time() })
+    local data, status = Chat.req("GET", "/users")
+    if status ~= 200 then return end
+    local now, names, n = os.time(), {}, 0
+    if type(data) == "table" then
+        for uid, info in pairs(data) do
+            if type(info) == "table" and now - (tonumber(info.t) or 0) <= 90 then
+                local plr = Players:GetPlayerByUserId(tonumber(uid) or 0)
+                if plr then
+                    n += 1
+                    table.insert(names, plr.Name)
+                end
+            end
+        end
+    end
+    table.sort(names)
+    if n == 0 then n, names = 1, { LocalPlayer.Name } end
+    local shown = {}
+    for i = 1, math.min(#names, 5) do shown[i] = names[i] end
+    setChatUsers(string.format("%d online · %s%s", n, table.concat(shown, ", "), #names > 5 and "..." or ""),
+        n > 1 and Theme.on or Theme.warn)
+end
+
+-- sending -------------------------------------------------------------
+function Chat.kickSelf()
+    Chat.running = false
+    pcall(function() LocalPlayer:Kick(Chat.KICK_MSG) end)
+end
+
+function Chat.send(text)
+    text = string.gsub(tostring(text or ""), "^%s+", "")
+    text = string.gsub(text, "%s+$", "")
+    if text == "" then return end
+
+    -- spam guard: too many messages in a row, too fast
+    local now = os.clock()
+    local gap = now - Chat.lastAttempt
+    Chat.lastAttempt = now
+    if gap < Chat.SPAM_GAP then
+        Chat.spam += 1
+        if Chat.spam >= Chat.MAX_STRIKES then Chat.kickSelf() return end
+        notify(string.format("Slow down (%d/%d).", Chat.spam, Chat.MAX_STRIKES), Theme.warn, 2)
+        return
+    end
+    Chat.spam = 0
+
+    local cut = utf8.offset(text, 201)
+    if cut then text = string.sub(text, 1, cut - 1) end
+
+    -- bad word guard
+    if Chat.isBad(text) then
+        Chat.strikes += 1
+        if Chat.strikes >= Chat.MAX_STRIKES then Chat.kickSelf() return end
+        notify(string.format("Message blocked (bad word) %d/%d.", Chat.strikes, Chat.MAX_STRIKES), Theme.warn, 2.5)
+        return
+    end
+    if not Chat.http then
+        notify("Executor without <b>request</b>.", Theme.danger, 3)
+        return
+    end
+    chatBox.Text = ""
+    Chat.activeUntil = os.clock() + 30
+    task.spawn(function()
+        local rec = { u = LocalPlayer.Name, i = LocalPlayer.UserId, d = LocalPlayer.DisplayName, m = text, t = os.time() }
+        local data, status = Chat.req("POST", "/messages", rec)
+        if status == 200 and type(data) == "table" and data.name then
+            Chat.upsert(data.name, rec)
+        else
+            chatBox.Text = text
+            notify("Failed to send (" .. tostring(status) .. ").", Theme.danger, 3)
+        end
+    end)
+end
+chatBox.FocusLost:Connect(function(enter) if enter then Chat.send(chatBox.Text) end end)
+sendBtn.Activated:Connect(function() Chat.send(chatBox.Text) end)
+
+function Chat.start()
+    if not Chat.http then
+        setChatUsers("Executor without HTTP request", Theme.danger)
+        notify("Chat needs an executor with <b>request</b> / <b>http_request</b>.", Theme.danger, 5)
+        return
+    end
+    Chat.running = true
+    setChatUsers("Connecting...", Theme.warn)
+    bind(Players.PlayerRemoving, function(p)
+        if p == LocalPlayer then return end
+        task.spawn(Chat.req, "DELETE", "/users/" .. p.UserId)
+    end)
+    task.spawn(function()
+        local lastPresence = 0
+        while ScreenGui.Parent and Chat.running do
+            pcall(Chat.poll)
+            if os.clock() - lastPresence >= 15 then
+                lastPresence = os.clock()
+                pcall(Chat.presence)
+            end
+            task.wait(os.clock() < Chat.activeUntil and 1.5 or 3)
+        end
+    end)
+end
+
+function Chat.stop()
+    if not Chat.running then return end
+    Chat.running = false
+    task.spawn(Chat.req, "DELETE", "/users/" .. LocalPlayer.UserId)
+end
+
+Chat.start()
+end
+
 P = pages.Player
 sectionLabel(P, "Script")
 local function disableUI()
+    Auto.doors = false
+    AutoHide.on = false
+    AutoHide.origin, AutoHide.moved, AutoHide.hold = nil, false, nil
     AlertOn = false
+    Plush.on = false
+    pcall(Chat.stop)
     pcall(setESP, false)
     pcall(specClose)
     pcall(setNoclip, false)
     pcall(setFullbright, false)
     pcall(setAntiVoid, false)
-    pcall(Extra.setCamNoclip, false)
-    pcall(Extra.setXray, false)
-    pcall(Extra.applyZoom, "")
+    pcall(setShaker, false)
     pcall(setKillOff, false)
     pcall(setJumpBlock, false)
     if Speed.value then
@@ -2171,7 +2997,7 @@ topBtn("—", -46, function() setOpen(false) end)
 task.spawn(function()
     while ScreenGui.Parent do
         pcall(function()
-        setDoorStat(string.format("%d sections · %d rooms", Stats.sections, Stats.rooms))
+        setDoorStat(string.format("%d sections · %d rooms · %d fired", Stats.sections, Stats.rooms, Stats.fired))
         setEspStat(string.format("%d entities in Workspace.Entities", #getEntities()))
 
         local first = getFirstRoom()
