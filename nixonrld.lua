@@ -695,7 +695,7 @@ local function makeInput(page, title, placeholder, onSubmit)
 end
 
 local ToastHolder = create("Frame", {
-    Name = "Toasts", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 12),
+    Name = "Toasts", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 56),
     Size = UDim2.fromOffset(math.clamp(vp.X - 90, 230, 320), 0), AutomaticSize = Enum.AutomaticSize.Y,
     BackgroundTransparency = 1, Parent = ScreenGui,
 }, {
@@ -703,7 +703,7 @@ local ToastHolder = create("Frame", {
 })
 
 local CornerHolder = create("Frame", {
-    Name = "CornerToasts", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 12),
+    Name = "CornerToasts", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -16, 0, 56),
     Size = UDim2.fromOffset(math.clamp(vp.X - 90, 200, 260), 0), AutomaticSize = Enum.AutomaticSize.Y,
     BackgroundTransparency = 1, Parent = ScreenGui,
 }, {
@@ -908,6 +908,7 @@ local function getAllEntities()
     if not folder then return list end
     for _, obj in ipairs(folder:GetDescendants()) do
         if obj:IsA("Model") or obj:IsA("BasePart") then
+            if obj.Name == "B-65" then pcall(function() obj.Name = "B-67" end) end -- B-65 is really B-67
             local ancestor = obj.Parent
             local insideModel = false
             while ancestor and ancestor ~= folder do
@@ -1678,24 +1679,24 @@ function setAntiVoid(v)
 end
 end
 
--- Shaker: toggle ON = screen shake disabled, OFF = shakers enabled again (nothing is deleted)
-local Shaker = { on = false, saved = {}, conn = nil }
+-- Shaker: permanent deletion action
+local ShakerState = { conn = nil }
 
 local function isShaker(o)
-    return o:IsA("BaseScript") and string.lower(o.Name) == "shaker"
+    return o:IsA("LuaSourceContainer") and string.lower(o.Name) == "shaker"
 end
 
-local function shakerDisable(o)
-    if Shaker.saved[o] == nil then Shaker.saved[o] = o.Disabled end
-    pcall(function() o.Disabled = true end)
+local function killShaker(o)
+    pcall(function() if o:IsA("BaseScript") then o.Disabled = true end end)
+    pcall(function() o:Destroy() end)
 end
 
-local function sweepShakers()
+local function deleteAllShakers()
     local n = 0
     local function sweep(list)
         for _, o in ipairs(list) do
             if isShaker(o) then
-                shakerDisable(o)
+                killShaker(o)
                 n += 1
             end
         end
@@ -1709,24 +1710,25 @@ local function sweepShakers()
     return n
 end
 
-local function setShaker(v)
-    Shaker.on = v
-    if Shaker.conn then Shaker.conn:Disconnect() Shaker.conn = nil end
-    if v then
-        local n = sweepShakers()
-        Shaker.conn = bind(game.DescendantAdded, function(o)
+local function activateShakerDelete()
+    local n = deleteAllShakers()
+    if not ShakerState.conn then
+        ShakerState.conn = bind(game.DescendantAdded, function(o)
             task.defer(function()
-                if Shaker.on and o.Parent and isShaker(o) then shakerDisable(o) end
+                if isShaker(o) then killShaker(o) end
             end)
         end)
-        notify(string.format("<b>Shaker</b> disabled (%d found).", n), Theme.on, 3)
-    else
-        for o, wasDisabled in pairs(Shaker.saved) do
-            pcall(function() o.Disabled = wasDisabled end)
-        end
-        Shaker.saved = {}
-        notify("<b>Shaker</b> enabled again.", Theme.accent2, 3)
     end
+    notify(string.format("<b>Shaker</b> deleted (%d found). New ones are deleted too.", n), Theme.on, 4)
+end
+
+local function showShakerDialog()
+    Dialog.show({
+        title = "Delete Shaker",
+        body = 'This deletes every "Shaker" script, so there will be <b>no more screen shake</b>. It <b>cannot be undone</b>.',
+        bar = Theme.danger, confirmText = "Delete", confirmBg = Theme.danger, confirmFg = Color3.new(1, 1, 1),
+        onConfirm = activateShakerDelete,
+    })
 end
 
 local function getSections()
@@ -2638,9 +2640,13 @@ makeInput(P, "Change Speed", "Number (empty = reset)", applySpeed)
 makeToggle(P, "Noclip", "Walk through walls", setNoclip)
 makeToggle(P, "Anti-Void", "Invisible floor if you fall", setAntiVoid)
 
+sectionLabel(P, "Players")
+makeToggle(P, "Enable ESP Players", "Name (@user) | distance | health", setPlayerESP)
+makeButton(P, "Teleport to Random Player", "Teleports next to a random player", teleportToRandomPlayer)
+
 sectionLabel(P, "World")
 makeToggle(P, "Fullbright", "Bright map, no fog", setFullbright)
-makeToggle(P, "Disable Shaker", "Screen shake off (turn off to restore it)", setShaker)
+makeButton(P, "Delete Shaker", "Deletes the screen shake scripts", showShakerDialog, true)
 
 sectionLabel(P, "Hazards")
 makeToggle(P, "Disable kill part", "\"the part that kills\" (client-side)", setKillOff)
@@ -2654,6 +2660,103 @@ for _, m in ipairs(MODES) do
     makeButton(P, "Activate " .. m, "Checkpoint game mode", function() confirmMode(m) end)
 end
 makeParagraph(P, "Entities <b>1-A</b>, <b>1-B</b> and <b>1-G</b> are ignored by alerts, auto-hide, tracker and spectate.", 54)
+
+
+-- Player ESP: "Display (@Name) | 626m | 100hp"
+local PlayerESP = { on = false, items = {} }
+
+local function pespRemove(plr)
+    local it = PlayerESP.items[plr]
+    if it then
+        it.gui:Destroy()
+        PlayerESP.items[plr] = nil
+    end
+end
+
+local function pespAdd(plr, head)
+    local gui = create("BillboardGui", {
+        Name = "PlayerESP", Adornee = head, AlwaysOnTop = true, Size = UDim2.fromOffset(300, 22),
+        StudsOffset = Vector3.new(0, 3, 0), ResetOnSpawn = false, Parent = ESPFolder,
+    })
+    local lbl = label({
+        Text = "", TextSize = 14, Font = FONT_BOLD, TextStrokeTransparency = 0.25,
+        TextXAlignment = Enum.TextXAlignment.Center, Size = UDim2.fromScale(1, 1), Parent = gui,
+    })
+    PlayerESP.items[plr] = { gui = gui, label = lbl, head = head }
+end
+
+local function setPlayerESP(v)
+    PlayerESP.on = v
+    if not v then
+        for plr in pairs(PlayerESP.items) do pespRemove(plr) end
+    end
+end
+
+task.spawn(function()
+    while ScreenGui.Parent do
+        if PlayerESP.on then
+            pcall(function()
+                local myRoot = getHRP()
+                local seen = {}
+                for _, plr in ipairs(Players:GetPlayers()) do
+                    if plr ~= LocalPlayer then
+                        local char = plr.Character
+                        local head = char and char:FindFirstChild("Head")
+                        local hum = char and char:FindFirstChildOfClass("Humanoid")
+                        if head and hum then
+                            seen[plr] = true
+                            local it = PlayerESP.items[plr]
+                            if it and it.head ~= head then
+                                pespRemove(plr)
+                                it = nil
+                            end
+                            if not it then
+                                pespAdd(plr, head)
+                                it = PlayerESP.items[plr]
+                            end
+                            local root = char:FindFirstChild("HumanoidRootPart") or head
+                            local dist = myRoot and math.floor((root.Position - myRoot.Position).Magnitude + 0.5) or 0
+                            local hp = math.max(0, math.floor(hum.Health + 0.5))
+                            local frac = hum.MaxHealth > 0 and math.clamp(hum.Health / hum.MaxHealth, 0, 1) or 1
+                            it.label.Text = string.format("%s (@%s) | %dm | %dhp", plr.DisplayName, plr.Name, dist, hp)
+                            it.label.TextColor3 = Color3.fromHSV(frac * 0.33, 0.55, 1)
+                        end
+                    end
+                end
+                for plr in pairs(PlayerESP.items) do
+                    if not seen[plr] then pespRemove(plr) end
+                end
+            end)
+        end
+        task.wait(0.1)
+    end
+end)
+
+local function teleportToRandomPlayer()
+    local hrp = getHRP()
+    if not hrp then
+        notify("Character not loaded or currently dead.", Theme.warn)
+        return
+    end
+    local options = {}
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer then
+            local root = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+            if root then table.insert(options, { plr = plr, root = root }) end
+        end
+    end
+    if #options == 0 then
+        notify("No other players with a character to teleport to.", Theme.warn)
+        return
+    end
+    local pick = options[math.random(1, #options)]
+    local pos = pick.root.Position - pick.root.CFrame.LookVector * 4 + Vector3.new(0, 1, 0)
+    hrp.AssemblyLinearVelocity = Vector3.zero
+    hrp.AssemblyAngularVelocity = Vector3.zero
+    local cur = hrp.CFrame
+    hrp.CFrame = CFrame.new(pos) * (cur - cur.Position)
+    notify(string.format("Teleported to <b>%s (@%s)</b>.", esc(pick.plr.DisplayName), esc(pick.plr.Name)), Theme.on, 2.5)
+end
 
 -- Chat tab: Firebase Realtime Database (REST). Never touches the Roblox chat.
 local Chat = {
@@ -2721,6 +2824,47 @@ function Chat.isBad(text)
         if string.find(low, w, 1, true) then return true end
     end
     return false
+end
+
+-- speech bubble above a player's head, drawn by the script (script users see it)
+Chat.bubbles = {}
+function Chat.bubble(plr, text)
+    local char = plr and plr.Character
+    local head = char and char:FindFirstChild("Head")
+    if not head then return end
+    local old = Chat.bubbles[plr]
+    if old then pcall(function() old:Destroy() end) end
+
+    text = tostring(text)
+    local ok, size = pcall(function()
+        return TextService:GetTextSize(text, 14, FONT_MED, Vector2.new(200, 1000))
+    end)
+    local w = ok and math.clamp(size.X, 24, 200) or 160
+    local h = ok and size.Y or 18
+
+    local gui = create("BillboardGui", {
+        Name = "ScriptBubble", Adornee = head, AlwaysOnTop = true,
+        Size = UDim2.fromOffset(w + 22, h + 14), StudsOffset = Vector3.new(0, 4.4, 0),
+        MaxDistance = 150, ResetOnSpawn = false, Parent = ESPFolder,
+    })
+    local frame = create("Frame", {
+        Size = UDim2.fromScale(1, 1), BackgroundColor3 = WHITE, BackgroundTransparency = 0.08,
+        BorderSizePixel = 0, Parent = gui,
+    }, { corner(10) })
+    local lbl = label({
+        Text = text, TextSize = 14, Font = FONT_MED, TextColor3 = Color3.fromRGB(25, 25, 30),
+        TextWrapped = true, TextXAlignment = Enum.TextXAlignment.Center,
+        Size = UDim2.new(1, -12, 1, -8), Position = UDim2.fromOffset(6, 4), Parent = frame,
+    })
+    Chat.bubbles[plr] = gui
+
+    task.delay(math.clamp(3 + #text / 12, 4, 10), function()
+        if Chat.bubbles[plr] == gui then Chat.bubbles[plr] = nil end
+        if not gui.Parent then return end
+        tween(frame, 0.3, { BackgroundTransparency = 1 })
+        tween(lbl, 0.3, { TextTransparency = 1 })
+        task.delay(0.35, function() if gui.Parent then gui:Destroy() end end)
+    end)
 end
 
 -- Firebase REST helper: returns decoded JSON (or nil), HTTP status
@@ -2807,9 +2951,13 @@ function Chat.upsert(id, rec)
 
     Chat.dbIds[id] = true
     local own = uid == LocalPlayer.UserId
-    Chat.addRow(id, "<b>" .. esc(who) .. "</b>: " .. esc(text), own or Chat.isHost)
-    if Chat.loaded and not own then
+    -- Owner tag is reserved for the configured host account.
+    local isOwner = plr ~= nil and plr.Name == Chat.HOST
+    local tag = isOwner and '<font color="#FFD966">[👑 Owner]</font> ' or '<font color="#9EA3B8">[👤 Member]</font> '
+    Chat.addRow(id, tag .. "<b>" .. esc(who) .. "</b>: " .. esc(text), own or Chat.isHost)
+    if Chat.loaded then
         notify("New message!", Theme.accent2, 2.5, nil, true)
+        if plr then pcall(Chat.bubble, plr, text) end
     end
 end
 
@@ -2970,7 +3118,7 @@ local function disableUI()
     pcall(setNoclip, false)
     pcall(setFullbright, false)
     pcall(setAntiVoid, false)
-    pcall(setShaker, false)
+    pcall(setPlayerESP, false)
     pcall(setKillOff, false)
     pcall(setJumpBlock, false)
     if Speed.value then
