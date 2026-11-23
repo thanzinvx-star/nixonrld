@@ -6,8 +6,6 @@ local TextService      = game:GetService("TextService")
 local Workspace        = game:GetService("Workspace")
 local Lighting         = game:GetService("Lighting")
 local CoreGui          = game:GetService("CoreGui")
-local TextChatService  = game:GetService("TextChatService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -133,6 +131,7 @@ local Theme = {
     warn    = Color3.fromRGB(236, 196, 84),
 }
 
+do
 local OLD_NAMES = { GUI_NAME, "wtrald_ui_beta" }
 for _, getParent in ipairs({
     function() return (gethui and gethui()) or CoreGui end,
@@ -149,6 +148,7 @@ for _, getParent in ipairs({
             end
         end
     end)
+end
 end
 
 local WHITE = Color3.new(1, 1, 1)
@@ -248,9 +248,8 @@ local win = create("Frame", {
     corner(20),
     create("UIGradient", { Color = ColorSequence.new(Color3.fromRGB(22, 17, 40), Color3.fromRGB(9, 9, 14)), Rotation = 125 }),
 })
-local winStroke = create("UIStroke", { Color = WHITE, Thickness = 2, Transparency = 0.1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Parent = win })
 local winGrad = accentGrad()
-winGrad.Parent = winStroke
+winGrad.Parent = create("UIStroke", { Color = WHITE, Thickness = 2, Transparency = 0.1, ApplyStrokeMode = Enum.ApplyStrokeMode.Border, Parent = win })
 
 local uiScale = create("UIScale", { Parent = win })
 local function fitScale()
@@ -265,11 +264,10 @@ if Workspace.CurrentCamera then
 end
 
 local top = create("Frame", { BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 44), Parent = win })
-local logo = label({
+accentGrad().Parent = label({
     Text = "RLD", Font = FONT_BLACK, TextSize = 20, TextColor3 = WHITE,
     Position = UDim2.new(0, 16, 0, 0), Size = UDim2.new(0, 90, 1, 0), Parent = top,
 })
-accentGrad().Parent = logo
 
 local function topBtn(txt, x, cb)
     local b = create("TextButton", {
@@ -337,18 +335,6 @@ bind(UserInputService.InputBegan, function(i, gp)
     if not gp and i.KeyCode == Enum.KeyCode.R then setOpen(not win.Visible) end
 end)
 
-local side = create("Frame", {
-    BackgroundTransparency = 1, Position = UDim2.new(0, 10, 0, 48), Size = UDim2.new(0, 128, 1, -58), Parent = win,
-}, { create("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }) })
-
-local content = create("Frame", {
-    BackgroundTransparency = 1, Position = UDim2.new(0, 146, 0, 48), Size = UDim2.new(1, -156, 1, -58),
-    ClipsDescendants = true, Parent = win,
-})
-
-local TAB_NAMES = { "Doors", "ESP", "Tracker", "Items", "Player", "Modes", "Chat" }
-local TAB_ICONS = { Doors = "🚪", ESP = "👁", Tracker = "📡", Items = "🎒", Player = "👤", Modes = "🎮", Chat = "💬" }
-
 local pages, tabBtns = {}, {}
 local orders = setmetatable({}, { __mode = "k" })
 local function nextOrder(page)
@@ -364,6 +350,19 @@ local function selectTab(name)
         tween(t.b, 0.2, { BackgroundColor3 = on and WHITE or Theme.card, TextColor3 = on and Theme.bg or Theme.sub })
     end
 end
+
+do
+local side = create("Frame", {
+    BackgroundTransparency = 1, Position = UDim2.new(0, 10, 0, 48), Size = UDim2.new(0, 128, 1, -58), Parent = win,
+}, { create("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }) })
+
+local content = create("Frame", {
+    BackgroundTransparency = 1, Position = UDim2.new(0, 146, 0, 48), Size = UDim2.new(1, -156, 1, -58),
+    ClipsDescendants = true, Parent = win,
+})
+
+local TAB_NAMES = { "Doors", "ESP", "Tracker", "Items", "Player", "Modes", "Chat" }
+local TAB_ICONS = { Doors = "🚪", ESP = "👁", Tracker = "📡", Items = "🎒", Player = "👤", Modes = "🎮", Chat = "💬" }
 
 for i, name in ipairs(TAB_NAMES) do
     local page = create("ScrollingFrame", {
@@ -385,6 +384,8 @@ for i, name in ipairs(TAB_NAMES) do
     g.Parent = b
     tabBtns[name] = { b = b, g = g }
     b.MouseButton1Click:Connect(function() selectTab(name) end)
+end
+
 end
 
 local function sectionLabel(page, text)
@@ -694,6 +695,9 @@ local function makeInput(page, title, placeholder, onSubmit)
     ok.Activated:Connect(function() onSubmit(box.Text) end)
 end
 
+local notify
+
+do
 local ToastHolder = create("Frame", {
     Name = "Toasts", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 56),
     Size = UDim2.fromOffset(math.clamp(vp.X - 90, 230, 320), 0), AutomaticSize = Enum.AutomaticSize.Y,
@@ -737,9 +741,9 @@ local function dismissToast(entry, fast)
     end)
 end
 
-local function notify(text, color, duration, glyph, corner)
-    local list = corner and activeCorner or activeToasts
-    local holder = corner and CornerHolder or ToastHolder
+function notify(text, color, duration, glyph, toCorner)
+    local list = toCorner and activeCorner or activeToasts
+    local holder = toCorner and CornerHolder or ToastHolder
     color = color or Theme.accent
     duration = duration or 3.5
     glyph = glyph or (color == Theme.on and "✓") or ((color == Theme.warn or color == Theme.danger) and "!") or "i"
@@ -809,6 +813,8 @@ local function notify(text, color, duration, glyph, corner)
     tween(card, 0.3, { GroupTransparency = 0 })
     tween(ringStroke, 0.3, { Transparency = 0.1 })
     start(duration)
+end
+
 end
 
 local Dialog = { onConfirm = nil, base = Theme.accent, hi = Theme.accent }
@@ -1080,6 +1086,9 @@ local function richName(name, color)
     return text
 end
 
+local setESP
+
+do
 local ESP = { on = false, items = {} }
 
 local function espRemove(entity)
@@ -1113,7 +1122,7 @@ local function espAdd(entity)
     ESP.items[entity] = { gui = gui, label = lbl, hl = hl }
 end
 
-local function setESP(v)
+function setESP(v)
     ESP.on = v
     if v then
         for _, e in ipairs(getEntities()) do espAdd(e) end
@@ -1154,7 +1163,12 @@ task.spawn(function()
     end
 end)
 
+end
+
 local Spec = { active = false, entity = nil }
+local specOpen, specClose, specStep
+
+do
 local SpecAudio = { originals = setmetatable({}, { __mode = "k" }) }
 
 local function restoreSpectateAudio()
@@ -1236,7 +1250,7 @@ local function specSet(entity)
     updateSpecLabel()
 end
 
-local function specClose()
+function specClose()
     Spec.active, Spec.entity = false, nil
     restoreSpectateAudio()
     SpectateBar.Visible = false
@@ -1245,7 +1259,7 @@ local function specClose()
     if cam and hum then cam.CameraSubject = hum end
 end
 
-local function specStep(dir)
+function specStep(dir)
     local list = getSpectables()
     if #list == 0 then
         specClose()
@@ -1257,7 +1271,7 @@ local function specStep(dir)
     specSet(list[idx])
 end
 
-local function specOpen()
+function specOpen()
     local list = getSpectables()
     if #list == 0 then
         notify("No entities found in <b>Workspace.Entities</b>.", Theme.warn)
@@ -1271,10 +1285,11 @@ end
 PrevBtn.Activated:Connect(function() specStep(-1) end)
 NextBtn.Activated:Connect(function() specStep(1) end)
 CloseBtn.Activated:Connect(specClose)
+end
 
 local AlertOn = false
-local ALERT_TIME = 2.5
 local ALERT_VARIANT = {}
+do
 local function regVariant(list, suffix)
     for _, name in ipairs(list) do ALERT_VARIANT[normalizeName(name)] = suffix end
 end
@@ -1290,6 +1305,7 @@ regVariant({
 }, " spawned, hide on a grey locker (must be color RGB(163, 162, 165)) or blue locker! (must be RGB(13, 105, 172))")
 
 regVariant({ "A-185" }, " spawned, hide on a GREY locker or a table!")
+end
 
 local TrackerEvents = { spawned = "—", despawned = "—" }
 
@@ -1549,8 +1565,10 @@ bind(RunService.Heartbeat, function()
     end
 end)
 
+local setNoclip
+do
 local noclipConn
-local function setNoclip(v)
+function setNoclip(v)
     if noclipConn then noclipConn:Disconnect() noclipConn = nil end
     if v then
         noclipConn = bind(RunService.Stepped, function()
@@ -1561,6 +1579,7 @@ local function setNoclip(v)
             end
         end)
     end
+end
 end
 
 local setFullbright
@@ -1679,7 +1698,9 @@ function setAntiVoid(v)
 end
 end
 
--- Shaker: permanent deletion action
+local showShakerDialog
+
+do
 local ShakerState = { conn = nil }
 
 local function isShaker(o)
@@ -1722,13 +1743,15 @@ local function activateShakerDelete()
     notify(string.format("<b>Shaker</b> deleted (%d found). New ones are deleted too.", n), Theme.on, 4)
 end
 
-local function showShakerDialog()
+function showShakerDialog()
     Dialog.show({
         title = "Delete Shaker",
         body = 'This deletes every "Shaker" script, so there will be <b>no more screen shake</b>. It <b>cannot be undone</b>.',
         bar = Theme.danger, confirmText = "Delete", confirmBg = Theme.danger, confirmFg = Color3.new(1, 1, 1),
         onConfirm = activateShakerDelete,
     })
+end
+
 end
 
 local function getSections()
@@ -1780,6 +1803,10 @@ local function getDoorPrompts(room)
     return list
 end
 
+local Auto = { doors = false }
+local Stats = { sections = 0, rooms = 0, fired = 0 }
+
+do
 local lastFire = setmetatable({}, { __mode = "k" })
 
 local function triggerPrompt(prompt)
@@ -1818,9 +1845,6 @@ local function firePrompt(prompt)
     return false
 end
 
-local Auto = { doors = false }
-local Stats = { sections = 0, rooms = 0, fired = 0 }
-
 task.spawn(function()
     while ScreenGui.Parent do
         pcall(function()
@@ -1842,6 +1866,7 @@ task.spawn(function()
         task.wait(0.25)
     end
 end)
+end
 
 local function doorFrame(door)
     if door:IsA("BasePart") then return door.CFrame, door.Size end
@@ -1999,7 +2024,10 @@ local function itemWarning(titleRich, sectionName, sectionColor, outline, bar, p
     })
 end
 
-local AutoHide = {
+local AutoHide, isThreatEntity
+
+do
+AutoHide = {
     on = false, side = -1, origin = nil, moved = false,
     handled = setmetatable({}, { __mode = "k" }),
     track   = setmetatable({}, { __mode = "k" }),
@@ -2023,7 +2051,7 @@ local LIGHT_AIM_ENTITIES = {
 }
 local G159_NAME, G159_OFFSET = "g-159", 350
 
-local function isThreatEntity(entity)
+function isThreatEntity(entity)
     return not isAlertIgnored(entity.Name) and not isEspIgnored(entity.Name)
 end
 
@@ -2290,6 +2318,7 @@ bind(RunService.Heartbeat, function()
     local ok, err = pcall(AutoHide.autoHideStep)
     if not ok then warn("[WTRALD AutoHide] " .. tostring(err)) end
 end)
+end
 
 local MODES = { "BRAZIL", "burbur", "fish", "hard", "insane", "lobotomy", "thecantloupe" }
 
@@ -2312,6 +2341,9 @@ local function findMode(name)
     return nil
 end
 
+local confirmMode
+
+do
 local function modeText(inst)
     local t = inst:FindFirstChild("txt", true)
     if not t then return nil end
@@ -2377,7 +2409,7 @@ local function activateMode(name)
     end
 end
 
-local function confirmMode(name)
+function confirmMode(name)
     if IS_BLOCKED then
         notify("<b>Modes</b> are blocked for your account.", Theme.danger, 3)
         return
@@ -2393,8 +2425,13 @@ local function confirmMode(name)
     })
 end
 
+end
+
 local Kill = { on = false, saved = setmetatable({}, { __mode = "k" }), count = 0 }
 
+local setKillOff
+
+do
 local function findKillParts()
     local out = {}
     for _, f in ipairs(Workspace:GetChildren()) do
@@ -2422,7 +2459,7 @@ local function applyKill(inst)
     end
 end
 
-local function setKillOff(v)
+function setKillOff(v)
     Kill.on = v
     if not v then
         for p, orig in pairs(Kill.saved) do
@@ -2445,6 +2482,11 @@ task.spawn(function()
     end
 end)
 
+end
+
+local setJumpBlock
+
+do
 local Jump = { on = false, saved = setmetatable({}, { __mode = "k" }), conn = nil }
 
 local function jumpGui()
@@ -2471,7 +2513,7 @@ local function jumpApply()
     end
 end
 
-local function setJumpBlock(v)
+function setJumpBlock(v)
     Jump.on = v
     if Jump.conn then Jump.conn:Disconnect() Jump.conn = nil end
     if v then
@@ -2493,6 +2535,8 @@ local function setJumpBlock(v)
         end
         Jump.saved = setmetatable({}, { __mode = "k" })
     end
+end
+
 end
 
 -- Auto Pick Freddies Plush
@@ -2537,6 +2581,106 @@ task.spawn(function()
 end)
 end
 
+
+-- Player ESP: "Display (@Name) | 626m | 100hp"
+local setPlayerESP, teleportToRandomPlayer
+
+do
+local PlayerESP = { on = false, items = {} }
+
+local function pespRemove(plr)
+    local it = PlayerESP.items[plr]
+    if it then
+        it.gui:Destroy()
+        PlayerESP.items[plr] = nil
+    end
+end
+
+local function pespAdd(plr, head)
+    local gui = create("BillboardGui", {
+        Name = "PlayerESP", Adornee = head, AlwaysOnTop = true, Size = UDim2.fromOffset(300, 22),
+        StudsOffset = Vector3.new(0, 3, 0), ResetOnSpawn = false, Parent = ESPFolder,
+    })
+    local lbl = label({
+        Text = "", TextSize = 14, Font = FONT_BOLD, TextStrokeTransparency = 0.25,
+        TextXAlignment = Enum.TextXAlignment.Center, Size = UDim2.fromScale(1, 1), Parent = gui,
+    })
+    PlayerESP.items[plr] = { gui = gui, label = lbl, head = head }
+end
+
+function setPlayerESP(v)
+    PlayerESP.on = v
+    if not v then
+        for plr in pairs(PlayerESP.items) do pespRemove(plr) end
+    end
+end
+
+task.spawn(function()
+    while ScreenGui.Parent do
+        if PlayerESP.on then
+            pcall(function()
+                local myRoot = getHRP()
+                local seen = {}
+                for _, plr in ipairs(Players:GetPlayers()) do
+                    if plr ~= LocalPlayer then
+                        local char = plr.Character
+                        local head = char and char:FindFirstChild("Head")
+                        local hum = char and char:FindFirstChildOfClass("Humanoid")
+                        if head and hum then
+                            seen[plr] = true
+                            local it = PlayerESP.items[plr]
+                            if it and it.head ~= head then
+                                pespRemove(plr)
+                                it = nil
+                            end
+                            if not it then
+                                pespAdd(plr, head)
+                                it = PlayerESP.items[plr]
+                            end
+                            local root = char:FindFirstChild("HumanoidRootPart") or head
+                            local dist = myRoot and math.floor((root.Position - myRoot.Position).Magnitude + 0.5) or 0
+                            local hp = math.max(0, math.floor(hum.Health + 0.5))
+                            local frac = hum.MaxHealth > 0 and math.clamp(hum.Health / hum.MaxHealth, 0, 1) or 1
+                            it.label.Text = string.format("%s (@%s) | %dm | %dhp", plr.DisplayName, plr.Name, dist, hp)
+                            it.label.TextColor3 = Color3.fromHSV(frac * 0.33, 0.55, 1)
+                        end
+                    end
+                end
+                for plr in pairs(PlayerESP.items) do
+                    if not seen[plr] then pespRemove(plr) end
+                end
+            end)
+        end
+        task.wait(0.1)
+    end
+end)
+
+function teleportToRandomPlayer()
+    local hrp = getHRP()
+    if not hrp then
+        notify("Character not loaded or currently dead.", Theme.warn)
+        return
+    end
+    local options = {}
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer then
+            local root = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+            if root then table.insert(options, { plr = plr, root = root }) end
+        end
+    end
+    if #options == 0 then
+        notify("No other players with a character to teleport to.", Theme.warn)
+        return
+    end
+    local pick = options[math.random(1, #options)]
+    local pos = pick.root.Position - pick.root.CFrame.LookVector * 4 + Vector3.new(0, 1, 0)
+    hrp.AssemblyLinearVelocity = Vector3.zero
+    hrp.AssemblyAngularVelocity = Vector3.zero
+    local cur = hrp.CFrame
+    hrp.CFrame = CFrame.new(pos) * (cur - cur.Position)
+    notify(string.format("Teleported to <b>%s (@%s)</b>.", esc(pick.plr.DisplayName), esc(pick.plr.Name)), Theme.on, 2.5)
+end
+end
 local P = pages.Doors
 sectionLabel(P, "Doors")
 Blk.doors = makeToggle(P, "Auto-Open Doors", "Opens doors in room order", function(v)
@@ -2660,103 +2804,6 @@ for _, m in ipairs(MODES) do
     makeButton(P, "Activate " .. m, "Checkpoint game mode", function() confirmMode(m) end)
 end
 makeParagraph(P, "Entities <b>1-A</b>, <b>1-B</b> and <b>1-G</b> are ignored by alerts, auto-hide, tracker and spectate.", 54)
-
-
--- Player ESP: "Display (@Name) | 626m | 100hp"
-local PlayerESP = { on = false, items = {} }
-
-local function pespRemove(plr)
-    local it = PlayerESP.items[plr]
-    if it then
-        it.gui:Destroy()
-        PlayerESP.items[plr] = nil
-    end
-end
-
-local function pespAdd(plr, head)
-    local gui = create("BillboardGui", {
-        Name = "PlayerESP", Adornee = head, AlwaysOnTop = true, Size = UDim2.fromOffset(300, 22),
-        StudsOffset = Vector3.new(0, 3, 0), ResetOnSpawn = false, Parent = ESPFolder,
-    })
-    local lbl = label({
-        Text = "", TextSize = 14, Font = FONT_BOLD, TextStrokeTransparency = 0.25,
-        TextXAlignment = Enum.TextXAlignment.Center, Size = UDim2.fromScale(1, 1), Parent = gui,
-    })
-    PlayerESP.items[plr] = { gui = gui, label = lbl, head = head }
-end
-
-local function setPlayerESP(v)
-    PlayerESP.on = v
-    if not v then
-        for plr in pairs(PlayerESP.items) do pespRemove(plr) end
-    end
-end
-
-task.spawn(function()
-    while ScreenGui.Parent do
-        if PlayerESP.on then
-            pcall(function()
-                local myRoot = getHRP()
-                local seen = {}
-                for _, plr in ipairs(Players:GetPlayers()) do
-                    if plr ~= LocalPlayer then
-                        local char = plr.Character
-                        local head = char and char:FindFirstChild("Head")
-                        local hum = char and char:FindFirstChildOfClass("Humanoid")
-                        if head and hum then
-                            seen[plr] = true
-                            local it = PlayerESP.items[plr]
-                            if it and it.head ~= head then
-                                pespRemove(plr)
-                                it = nil
-                            end
-                            if not it then
-                                pespAdd(plr, head)
-                                it = PlayerESP.items[plr]
-                            end
-                            local root = char:FindFirstChild("HumanoidRootPart") or head
-                            local dist = myRoot and math.floor((root.Position - myRoot.Position).Magnitude + 0.5) or 0
-                            local hp = math.max(0, math.floor(hum.Health + 0.5))
-                            local frac = hum.MaxHealth > 0 and math.clamp(hum.Health / hum.MaxHealth, 0, 1) or 1
-                            it.label.Text = string.format("%s (@%s) | %dm | %dhp", plr.DisplayName, plr.Name, dist, hp)
-                            it.label.TextColor3 = Color3.fromHSV(frac * 0.33, 0.55, 1)
-                        end
-                    end
-                end
-                for plr in pairs(PlayerESP.items) do
-                    if not seen[plr] then pespRemove(plr) end
-                end
-            end)
-        end
-        task.wait(0.1)
-    end
-end)
-
-local function teleportToRandomPlayer()
-    local hrp = getHRP()
-    if not hrp then
-        notify("Character not loaded or currently dead.", Theme.warn)
-        return
-    end
-    local options = {}
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr ~= LocalPlayer then
-            local root = plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
-            if root then table.insert(options, { plr = plr, root = root }) end
-        end
-    end
-    if #options == 0 then
-        notify("No other players with a character to teleport to.", Theme.warn)
-        return
-    end
-    local pick = options[math.random(1, #options)]
-    local pos = pick.root.Position - pick.root.CFrame.LookVector * 4 + Vector3.new(0, 1, 0)
-    hrp.AssemblyLinearVelocity = Vector3.zero
-    hrp.AssemblyAngularVelocity = Vector3.zero
-    local cur = hrp.CFrame
-    hrp.CFrame = CFrame.new(pos) * (cur - cur.Position)
-    notify(string.format("Teleported to <b>%s (@%s)</b>.", esc(pick.plr.DisplayName), esc(pick.plr.Name)), Theme.on, 2.5)
-end
 
 -- Chat tab: Firebase Realtime Database (REST). Never touches the Roblox chat.
 local Chat = {
@@ -2951,7 +2998,7 @@ function Chat.upsert(id, rec)
 
     Chat.dbIds[id] = true
     local own = uid == LocalPlayer.UserId
-    -- Owner tag is reserved for the configured host account.
+    -- tags: [👑 Owner] only for the real Web_Julio9 account in this server, everyone else [👤 Member]
     local isOwner = plr ~= nil and plr.Name == Chat.HOST
     local tag = isOwner and '<font color="#FFD966">[👑 Owner]</font> ' or '<font color="#9EA3B8">[👤 Member]</font> '
     Chat.addRow(id, tag .. "<b>" .. esc(who) .. "</b>: " .. esc(text), own or Chat.isHost)
