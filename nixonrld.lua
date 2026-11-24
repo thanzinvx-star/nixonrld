@@ -2889,7 +2889,7 @@ makeParagraph(P, "Entities <b>1-A</b>, <b>1-B</b> and <b>1-G</b> are ignored by 
 local Chat = {
     DB = "https://rld-chat-8b60b-default-rtdb.firebaseio.com/",
     HOST = "Web_Julio9",
-    BAD_WORDS = { "porra", "caralho", "puta", "fdp", "merda", "fuck", "shit", "bitch" },
+    BAD_WORDS = { "ososo", "idisowo", "ididi", "jdjd", "jsjs", "idododos", "snaj", "ksisosisisi" },
     running = false, msgs = {}, order = {}, dbIds = {}, seq = 0, users = {},
     activeUntil = 0, errShown = false, loaded = false,
     MAX_STRIKES = 20,      -- bad words OR rapid-fire messages before the kick
