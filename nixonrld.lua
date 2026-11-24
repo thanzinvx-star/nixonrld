@@ -65,6 +65,7 @@ local function isAlertIgnored(name)
     local n = normalizeName(name)
     if ALERT_IGNORE[n] == true then return true end
     local flat = string.gsub(n, "[^%w]", "")
+    if string.find(flat, "^notreal") then return true end
     return string.find(flat, "a120", 1, true) ~= nil
 end
 
@@ -72,6 +73,7 @@ local function isEspIgnored(name)
     local low = string.lower(name)
     if ESP_BLACKLIST[low] then return true end
     local norm = string.gsub(low, "[^%w]", "")
+    if string.find(norm, "^notreal") then return true end
     if #norm >= 2 and string.match(norm, "^[xyz]+$") then return true end
     if string.find(norm, "a120", 1, true) then return true end
     if string.find(norm, "300minion", 1, true) or string.find(norm, "minion300", 1, true) then return true end
@@ -80,6 +82,7 @@ end
 
 local function isSpecIgnored(name)
     local flat = string.gsub(string.lower(tostring(name)), "[^%w]", "")
+    if string.find(flat, "^notreal") then return true end
 
     local ignored = {
         "1a", "1b", "1g", "mob1", "mob2",
@@ -207,6 +210,46 @@ local function label(props)
     return create("TextLabel", props)
 end
 
+-- vector icons drawn with frames (no text glyphs)
+local function makeIcon(kind, parent, size, color)
+    local box = create("Frame", {
+        Name = "Icon", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(size, size), BackgroundTransparency = 1, Parent = parent,
+    })
+    local t = math.max(2, size * 0.12)
+    local function bar(len, thick, rot, cx, cy)
+        return create("Frame", {
+            AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(cx * size, cy * size),
+            Size = UDim2.fromOffset(len * size, thick), Rotation = rot, BackgroundColor3 = color,
+            BorderSizePixel = 0, Parent = box,
+        }, { pill() })
+    end
+    if kind == "close" then
+        bar(0.9, t, 45, 0.5, 0.5); bar(0.9, t, -45, 0.5, 0.5)
+    elseif kind == "minus" then
+        bar(0.75, t, 0, 0.5, 0.5)
+    elseif kind == "chevronRight" then
+        bar(0.5, t, 45, 0.5, 0.5 - 0.177); bar(0.5, t, -45, 0.5, 0.5 + 0.177)
+    elseif kind == "chevronLeft" then
+        bar(0.5, t, -45, 0.5, 0.5 - 0.177); bar(0.5, t, 45, 0.5, 0.5 + 0.177)
+    elseif kind == "check" then
+        bar(0.32, t, 45, 0.25, 0.61); bar(0.62, t, -45, 0.58, 0.50)
+    elseif kind == "warn" then
+        bar(0.5, t + 0.5, 90, 0.5, 0.36)
+        local dot = bar(0.01, t + 1, 0, 0.5, 0.80); dot.Size = UDim2.fromOffset(t + 1, t + 1)
+    else
+        local dot = bar(0.01, t + 1, 0, 0.5, 0.22); dot.Size = UDim2.fromOffset(t + 1, t + 1)
+        bar(0.42, t + 0.5, 90, 0.5, 0.60)
+    end
+    return box
+end
+
+local function tintIcon(icon, color)
+    for _, c in ipairs(icon:GetChildren()) do
+        if c:IsA("Frame") then c.BackgroundColor3 = color end
+    end
+end
+
 local function getHRP()
     local c = LocalPlayer.Character
     return c and c:FindFirstChild("HumanoidRootPart")
@@ -269,14 +312,19 @@ accentGrad().Parent = label({
     Position = UDim2.new(0, 16, 0, 0), Size = UDim2.new(0, 90, 1, 0), Parent = top,
 })
 
-local function topBtn(txt, x, cb)
+local function topBtn(kind, x, cb)
     local b = create("TextButton", {
-        Text = txt, Font = FONT_BOLD, TextSize = 14, TextColor3 = Theme.sub, BackgroundColor3 = Theme.card,
+        Text = "", BackgroundColor3 = Theme.card,
         AutoButtonColor = false, AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, x, 0.5, 0),
         Size = UDim2.fromOffset(30, 26), BorderSizePixel = 0, Parent = top,
     }, { corner(8) })
-    b.MouseEnter:Connect(function() tween(b, 0.15, { BackgroundColor3 = Theme.cardHi, TextColor3 = Theme.text }) end)
-    b.MouseLeave:Connect(function() tween(b, 0.15, { BackgroundColor3 = Theme.card, TextColor3 = Theme.sub }) end)
+    local ic = makeIcon(kind, b, 12, Theme.sub)
+    b.MouseEnter:Connect(function()
+        tween(b, 0.15, { BackgroundColor3 = Theme.cardHi }); tintIcon(ic, Theme.text)
+    end)
+    b.MouseLeave:Connect(function()
+        tween(b, 0.15, { BackgroundColor3 = Theme.card }); tintIcon(ic, Theme.sub)
+    end)
     b.MouseButton1Click:Connect(cb)
     return b
 end
@@ -361,7 +409,7 @@ local content = create("Frame", {
     ClipsDescendants = true, Parent = win,
 })
 
-local TAB_NAMES = { "Doors", "ESP", "Tracker", "Items", "Player", "Modes", "Chat" }
+local TAB_NAMES = { "Chat", "Doors", "ESP", "Tracker", "Items", "Player", "Modes" }
 local TAB_ICONS = { Doors = "🚪", ESP = "👁", Tracker = "📡", Items = "🎒", Player = "👤", Modes = "🎮", Chat = "💬" }
 
 for i, name in ipairs(TAB_NAMES) do
@@ -472,20 +520,22 @@ local function makeButton(page, title, sub, onClick, danger, rich)
     local row = baseRow(page, 52)
     rowTexts(row, title, sub, 30, danger, rich)
     local tint = danger and Theme.danger or Theme.accent2
-    local chev = label({
-        Text = ">", TextSize = 18, Font = FONT_BOLD, TextColor3 = Theme.sub,
-        TextXAlignment = Enum.TextXAlignment.Center, AnchorPoint = Vector2.new(1, 0.5),
+    local chev = create("Frame", {
+        BackgroundTransparency = 1, AnchorPoint = Vector2.new(1, 0.5),
         Position = UDim2.new(1, -14, 0.5, 0), Size = UDim2.fromOffset(16, 22), Parent = row,
     })
+    local chevIcon = makeIcon("chevronRight", chev, 14, Theme.sub)
     local btn = overlayButton(row)
     pressFx(btn,
         function()
             tween(row, 0.1, { BackgroundColor3 = Theme.cardHi })
-            tween(chev, 0.15, { Position = UDim2.new(1, -10, 0.5, 0), TextColor3 = tint }, Enum.EasingStyle.Quint)
+            tween(chev, 0.15, { Position = UDim2.new(1, -10, 0.5, 0) }, Enum.EasingStyle.Quint)
+            tintIcon(chevIcon, tint)
         end,
         function()
             tween(row, 0.25, { BackgroundColor3 = Theme.card })
-            tween(chev, 0.3, { Position = UDim2.new(1, -14, 0.5, 0), TextColor3 = Theme.sub }, Enum.EasingStyle.Quint)
+            tween(chev, 0.3, { Position = UDim2.new(1, -14, 0.5, 0) }, Enum.EasingStyle.Quint)
+            tintIcon(chevIcon, Theme.sub)
         end)
     btn.Activated:Connect(function() task.spawn(onClick) end)
 end
@@ -562,6 +612,8 @@ local function isDark(c)
     return (c.R * 0.299 + c.G * 0.587 + c.B * 0.114) < 0.25
 end
 
+local findEntityImage
+
 local function makeEntityBar(page, title)
     local row = baseRow(page, 100)
     label({
@@ -610,12 +662,17 @@ local function makeEntityBar(page, title)
             AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(0, 54), Size = UDim2.fromOffset(12, 12),
             BackgroundColor3 = WHITE, BorderSizePixel = 0, ZIndex = 3, Parent = lane,
         }, { pill(), ds })
+        local img = create("ImageLabel", {
+            AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(0, 54), Size = UDim2.fromOffset(22, 22),
+            BackgroundTransparency = 1, BorderSizePixel = 0, ScaleType = Enum.ScaleType.Fit,
+            Visible = false, ZIndex = 3, Parent = lane,
+        })
         local lbl = label({
             Text = "", TextSize = 10, Font = FONT_BOLD, TextXAlignment = Enum.TextXAlignment.Center,
             TextStrokeTransparency = 0.4, AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(40, 14),
             Position = UDim2.fromOffset(0, 26), ZIndex = 4, Parent = lane,
         })
-        e = { dot = dot, stroke = ds, label = lbl, init = false }
+        e = { dot = dot, img = img, stroke = ds, label = lbl, init = false, hasImg = false, lastTry = 0 }
         pool[key] = e
         return e
     end
@@ -638,11 +695,11 @@ local function makeEntityBar(page, title)
             if l >= lastA + 3 then
                 y, lastA = 26, r
             elseif l >= lastB + 3 then
-                y, lastB = 64, r
+                y, lastB = 68, r
             elseif lastA <= lastB then
                 y, lastA = 26, math.max(lastA, r)
             else
-                y, lastB = 64, math.max(lastB, r)
+                y, lastB = 68, math.max(lastB, r)
             end
 
             local dark = isDark(it.color)
@@ -653,12 +710,27 @@ local function makeEntityBar(page, title)
             e.dot.BackgroundColor3 = it.color
             e.stroke.Color = dark and WHITE or Theme.card
 
+            -- Entity image replaces the dot; the dot remains the fallback.
+            if it.entity and not e.hasImg and os.clock() - e.lastTry > 1 then
+                e.lastTry = os.clock()
+                local okI, imageData = pcall(findEntityImage, it.entity)
+                if okI and imageData then
+                    e.img.Image = imageData.Image
+                    e.img.ImageRectOffset = imageData.Offset
+                    e.img.ImageRectSize = imageData.Size
+                    e.hasImg = true
+                end
+            end
+            e.img.Visible = e.hasImg
+            e.dot.Visible = not e.hasImg
+
             local dp, lp = UDim2.fromOffset(x, 54), UDim2.fromOffset(cx, y)
             if e.init then
                 tween(e.dot, 0.3, { Position = dp }, Enum.EasingStyle.Quint)
+                tween(e.img, 0.3, { Position = dp }, Enum.EasingStyle.Quint)
                 tween(e.label, 0.3, { Position = lp }, Enum.EasingStyle.Quint)
             else
-                e.dot.Position, e.label.Position = dp, lp
+                e.dot.Position, e.img.Position, e.label.Position = dp, dp, lp
                 e.init = true
             end
         end
@@ -666,6 +738,7 @@ local function makeEntityBar(page, title)
         for key, e in pairs(pool) do
             if not seen[key] then
                 e.dot:Destroy()
+                e.img:Destroy()
                 e.label:Destroy()
                 pool[key] = nil
             end
@@ -778,10 +851,11 @@ function notify(text, color, duration, glyph, toCorner)
         Rotation = 35, Parent = ringStroke,
     })
     local badge = create("TextLabel", {
-        Text = glyph, TextSize = 14, Font = FONT_BLACK, TextColor3 = color, BackgroundColor3 = color,
+        Text = "", TextSize = 14, Font = FONT_BLACK, TextColor3 = color, BackgroundColor3 = color,
         BackgroundTransparency = 0.84, Size = UDim2.fromOffset(26, 26), Position = UDim2.fromOffset(10, 11),
         BorderSizePixel = 0, Parent = card,
     }, { corner(8) })
+    makeIcon((color == Theme.on) and "check" or ((color == Theme.warn or color == Theme.danger) and "warn" or "info"), badge, 16, color)
     label({
         Text = text, RichText = true, TextSize = 12, Font = FONT_MED, TextWrapped = true,
         TextTruncate = Enum.TextTruncate.None, TextYAlignment = Enum.TextYAlignment.Center,
@@ -1206,16 +1280,17 @@ local NavRow = create("Frame", {
     BorderSizePixel = 0, Parent = SpectateBar,
 }, { corner(12), stroke(Theme.stroke, 1, 0) })
 
-local function navBtn(text, anchorX)
+local function navBtn(kind, anchorX)
     local b = create("TextButton", {
-        Text = text, TextSize = 20, Font = FONT_BOLD, TextColor3 = Theme.text, AutoButtonColor = false,
+        Text = "", TextSize = 20, Font = FONT_BOLD, TextColor3 = Theme.text, AutoButtonColor = false,
         AnchorPoint = Vector2.new(anchorX, 0.5), Position = UDim2.new(anchorX, anchorX == 0 and 7 or -7, 0.5, 0),
         Size = UDim2.fromOffset(44, 38), BackgroundColor3 = Theme.cardHi, BorderSizePixel = 0, Parent = NavRow,
     }, { corner(9) })
+    makeIcon(kind, b, 18, Theme.text)
     tapFx(b, Theme.cardHi, Theme.stroke)
     return b
 end
-local PrevBtn, NextBtn = navBtn("<", 0), navBtn(">", 1)
+local PrevBtn, NextBtn = navBtn("chevronLeft", 0), navBtn("chevronRight", 1)
 local NameLabel = label({
     Text = "", RichText = true, TextSize = 15, Font = FONT_BOLD, TextTruncate = Enum.TextTruncate.AtEnd,
     TextXAlignment = Enum.TextXAlignment.Center, Position = UDim2.fromOffset(58, 0), Size = UDim2.new(1, -116, 1, 0),
@@ -1346,7 +1421,7 @@ end
 
 local IMAGE_GUI_NAMES = { "MonsterGui", "BillboardGui" }
 
-local function findEntityImage(entity)
+findEntityImage = function(entity)
     local roots = {}
     local rush = (entity.Name == "RushNew") and entity or entity:FindFirstChild("RushNew", true)
     if rush then table.insert(roots, rush) end
@@ -1374,11 +1449,15 @@ end
 local activeAlerts, alertN = {}, 0
 local ALERT_SHOW = 4
 
-local function dismissAlert(a)
+local function dismissAlert(a, instant)
     if a.dead then return end
     a.dead = true
     local i = table.find(activeAlerts, a)
     if i then table.remove(activeAlerts, i) end
+    if instant then
+        if a.wrap.Parent then a.wrap:Destroy() end
+        return
+    end
     tween(a.card, 0.25, { GroupTransparency = 1 })
     if a.ringStroke then tween(a.ringStroke, 0.25, { Transparency = 1 }) end
     tween(a.wrap, 0.3, { Size = UDim2.new(1, 0, 0, 0) })
@@ -1389,7 +1468,8 @@ alertNotify = function(entity, suffix)
     local color = entityColor(entity)
     local accent = isDark(color) and WHITE or color
 
-    while #activeAlerts >= 3 do dismissAlert(activeAlerts[1]) end
+    -- One alert at a time: replace the current alert immediately.
+    while #activeAlerts >= 1 do dismissAlert(activeAlerts[1], true) end
 
     alertN += 1
     local wrap = create("Frame", {
@@ -2956,10 +3036,11 @@ function Chat.addRow(id, richText, deletable)
     })
     if deletable then
         local del = create("TextButton", {
-            Text = "✕", TextSize = 12, Font = FONT_BOLD, TextColor3 = Theme.danger,
+            Text = "", TextSize = 12, Font = FONT_BOLD, TextColor3 = Theme.danger,
             AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 0), Size = UDim2.fromOffset(22, 20),
             BackgroundColor3 = Theme.cardHi, AutoButtonColor = false, BorderSizePixel = 0, Parent = frame,
         }, { corner(6) })
+        makeIcon("close", del, 10, Theme.danger)
         del.Activated:Connect(function()
             Chat.removeMessage(id)
             task.spawn(Chat.req, "DELETE", "/messages/" .. id)
@@ -2998,9 +3079,9 @@ function Chat.upsert(id, rec)
 
     Chat.dbIds[id] = true
     local own = uid == LocalPlayer.UserId
-    -- tags: [👑 Owner] only for the real Web_Julio9 account in this server, everyone else [👤 Member]
+    -- Owner only for the configured host account; everyone else is a member.
     local isOwner = plr ~= nil and plr.Name == Chat.HOST
-    local tag = isOwner and '<font color="#FFD966">[👑 Owner]</font> ' or '<font color="#9EA3B8">[👤 Member]</font> '
+    local tag = isOwner and '<font color="#FFD966"><b>👑 Owner</b></font>  ' or '<font color="#9EA3B8">👤 Member</font>  '
     Chat.addRow(id, tag .. "<b>" .. esc(who) .. "</b>: " .. esc(text), own or Chat.isHost)
     if Chat.loaded then
         notify("New message!", Theme.accent2, 2.5, nil, true)
@@ -3186,8 +3267,8 @@ makeButton(P, "Disable UI", "Unloads the script", function()
     end
 end, true)
 
-topBtn("✕", -10, disableUI)
-topBtn("—", -46, function() setOpen(false) end)
+topBtn("close", -10, disableUI)
+topBtn("minus", -46, function() setOpen(false) end)
 
 task.spawn(function()
     while ScreenGui.Parent do
@@ -3236,7 +3317,7 @@ task.spawn(function()
                     local ok, pos = pcall(entityPos, entity)
                     if ok and typeof(pos) == "Vector3" then
                         local f = math.clamp((pos - startPos):Dot(axis) / len2, 0, 1)
-                        table.insert(barItems, { key = entity, name = entity.Name, frac = f, color = entityColor(entity) })
+                        table.insert(barItems, { key = entity, entity = entity, name = entity.Name, frac = f, color = entityColor(entity) })
                     end
                 end
             end
@@ -3260,7 +3341,7 @@ task.spawn(function()
     end
 end)
 
-selectTab("Doors")
+selectTab("Chat")
 setOpen(true)
 
 ScreenGui.Destroying:Connect(function()
