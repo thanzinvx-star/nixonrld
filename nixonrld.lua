@@ -1373,11 +1373,11 @@ regVariant({
     "A-105", "C-105", "A-100", "X-100", "A-320", "B-170", "B-40",
     "G-55", "CG-55", "G-150", "G-122", "Cate-40", "Noonir-40",
     "Omg-40", "G-10", "CG-10", "T-110", "GodHasForsaken",
-}, " spawned, hide in a table! (table must be color of lightwood)")
+}, " spawned, hide in a table!")
 
 regVariant({
     "A-200", "B-120", "CV-300", "FO-300", "G-140", "MY_INNER_SKIN",
-}, " spawned, hide on a grey locker (must be color RGB(163, 162, 165)) or blue locker! (must be RGB(13, 105, 172))")
+}, " spawned, hide on a grey locker or blue locker!")
 
 regVariant({ "A-185" }, " spawned, hide on a GREY locker or a table!")
 end
