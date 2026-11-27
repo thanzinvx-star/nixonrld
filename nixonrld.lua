@@ -65,15 +65,15 @@ local function isAlertIgnored(name)
     local n = normalizeName(name)
     if ALERT_IGNORE[n] == true then return true end
     local flat = string.gsub(n, "[^%w]", "")
-    if string.find(flat, "^notreal") then return true end
+    if string.find(flat, "notreal", 1, true) then return true end
     return string.find(flat, "a120", 1, true) ~= nil
 end
 
 local function isEspIgnored(name)
-    local low = string.lower(name)
+    local low = string.lower(tostring(name))
     if ESP_BLACKLIST[low] then return true end
     local norm = string.gsub(low, "[^%w]", "")
-    if string.find(norm, "^notreal") then return true end
+    if string.find(norm, "notreal", 1, true) then return true end
     if #norm >= 2 and string.match(norm, "^[xyz]+$") then return true end
     if string.find(norm, "a120", 1, true) then return true end
     if string.find(norm, "300minion", 1, true) or string.find(norm, "minion300", 1, true) then return true end
@@ -82,11 +82,10 @@ end
 
 local function isSpecIgnored(name)
     local flat = string.gsub(string.lower(tostring(name)), "[^%w]", "")
-    if string.find(flat, "^notreal") then return true end
+    if string.find(flat, "notreal", 1, true) then return true end
 
     local ignored = {
         "1a", "1b", "1g", "mob1", "mob2",
-
         "happyman", "joyfulman", "nerdman", "mournfulman",
         "shortman", "tallman", "angryman", "sadman", "bigman",
         "sb1", "glee", "a120", "hardcore120", "amon", "amon2",
@@ -210,43 +209,114 @@ local function label(props)
     return create("TextLabel", props)
 end
 
--- vector icons drawn with frames (no text glyphs)
-local function makeIcon(kind, parent, size, color)
+-- Vector icons drawn purely with UI frames (zero text glyphs/characters)
+local function makeIcon(kind, parent, size, color, pos, anchor)
     local box = create("Frame", {
-        Name = "Icon", AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.5),
-        Size = UDim2.fromOffset(size, size), BackgroundTransparency = 1, Parent = parent,
+        Name = "Icon",
+        AnchorPoint = anchor or Vector2.new(0.5, 0.5),
+        Position = pos or UDim2.fromScale(0.5, 0.5),
+        Size = UDim2.fromOffset(size, size),
+        BackgroundTransparency = 1,
+        Parent = parent,
     })
-    local t = math.max(2, size * 0.12)
+    local t = math.max(1.8, size * 0.12)
     local function bar(len, thick, rot, cx, cy)
         return create("Frame", {
-            AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(cx * size, cy * size),
-            Size = UDim2.fromOffset(len * size, thick), Rotation = rot, BackgroundColor3 = color,
-            BorderSizePixel = 0, Parent = box,
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.fromOffset(cx * size, cy * size),
+            Size = UDim2.fromOffset(len * size, thick),
+            Rotation = rot,
+            BackgroundColor3 = color,
+            BorderSizePixel = 0,
+            Parent = box,
         }, { pill() })
     end
+    local function ring(w, h, cx, cy, rad)
+        local f = create("Frame", {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.fromOffset(cx * size, cy * size),
+            Size = UDim2.fromOffset(w * size, h * size),
+            BackgroundTransparency = 1,
+            BorderSizePixel = 0,
+            Parent = box,
+        }, { rad or pill(), stroke(color, math.max(1.5, size * 0.11), 0) })
+        return f
+    end
+    local function dot(d, cx, cy)
+        return create("Frame", {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.fromOffset(cx * size, cy * size),
+            Size = UDim2.fromOffset(d * size, d * size),
+            BackgroundColor3 = color,
+            BorderSizePixel = 0,
+            Parent = box,
+        }, { pill() })
+    end
+
     if kind == "close" then
-        bar(0.9, t, 45, 0.5, 0.5); bar(0.9, t, -45, 0.5, 0.5)
+        bar(0.85, t, 45, 0.5, 0.5)
+        bar(0.85, t, -45, 0.5, 0.5)
     elseif kind == "minus" then
         bar(0.75, t, 0, 0.5, 0.5)
     elseif kind == "chevronRight" then
-        bar(0.5, t, 45, 0.5, 0.5 - 0.177); bar(0.5, t, -45, 0.5, 0.5 + 0.177)
+        bar(0.48, t, 45, 0.5, 0.5 - 0.17)
+        bar(0.48, t, -45, 0.5, 0.5 + 0.17)
     elseif kind == "chevronLeft" then
-        bar(0.5, t, -45, 0.5, 0.5 - 0.177); bar(0.5, t, 45, 0.5, 0.5 + 0.177)
+        bar(0.48, t, -45, 0.5, 0.5 - 0.17)
+        bar(0.48, t, 45, 0.5, 0.5 + 0.17)
     elseif kind == "check" then
-        bar(0.32, t, 45, 0.25, 0.61); bar(0.62, t, -45, 0.58, 0.50)
+        bar(0.32, t, 45, 0.27, 0.60)
+        bar(0.62, t, -45, 0.58, 0.49)
     elseif kind == "warn" then
-        bar(0.5, t + 0.5, 90, 0.5, 0.36)
-        local dot = bar(0.01, t + 1, 0, 0.5, 0.80); dot.Size = UDim2.fromOffset(t + 1, t + 1)
-    else
-        local dot = bar(0.01, t + 1, 0, 0.5, 0.22); dot.Size = UDim2.fromOffset(t + 1, t + 1)
-        bar(0.42, t + 0.5, 90, 0.5, 0.60)
+        bar(0.48, t + 0.4, 90, 0.5, 0.35)
+        dot(0.16, 0.5, 0.78)
+    elseif kind == "send" then
+        bar(0.65, t, -35, 0.48, 0.48)
+        bar(0.36, t, 10, 0.62, 0.31)
+        bar(0.36, t, 80, 0.67, 0.41)
+    elseif kind == "chat" then
+        ring(0.82, 0.64, 0.5, 0.44, corner(4))
+        bar(0.28, t, -45, 0.32, 0.80)
+        bar(0.35, t * 0.85, 0, 0.5, 0.38)
+        bar(0.24, t * 0.85, 0, 0.45, 0.52)
+    elseif kind == "doors" then
+        ring(0.56, 0.86, 0.5, 0.5, corner(3))
+        dot(0.14, 0.64, 0.52)
+    elseif kind == "esp" then
+        ring(0.88, 0.54, 0.5, 0.5)
+        dot(0.28, 0.5, 0.5)
+    elseif kind == "tracker" then
+        ring(0.86, 0.86, 0.5, 0.5)
+        ring(0.48, 0.48, 0.5, 0.5)
+        dot(0.18, 0.5, 0.5)
+    elseif kind == "items" then
+        ring(0.70, 0.64, 0.5, 0.58, corner(4))
+        ring(0.38, 0.32, 0.5, 0.26, corner(4))
+    elseif kind == "player" then
+        ring(0.36, 0.36, 0.5, 0.30)
+        ring(0.68, 0.38, 0.5, 0.76, corner(5))
+    elseif kind == "modes" then
+        ring(0.86, 0.58, 0.5, 0.52, corner(5))
+        bar(0.24, t * 0.85, 0, 0.33, 0.52)
+        bar(0.24, t * 0.85, 90, 0.33, 0.52)
+        dot(0.13, 0.68, 0.45)
+        dot(0.13, 0.68, 0.60)
+    else -- info
+        dot(0.16, 0.5, 0.24)
+        bar(0.42, t + 0.4, 90, 0.5, 0.60)
     end
     return box
 end
 
 local function tintIcon(icon, color)
     for _, c in ipairs(icon:GetChildren()) do
-        if c:IsA("Frame") then c.BackgroundColor3 = color end
+        if c:IsA("Frame") then
+            if c.BackgroundTransparency < 1 then
+                c.BackgroundColor3 = color
+            end
+            local st = c:FindFirstChildOfClass("UIStroke")
+            if st then st.Color = color end
+        end
     end
 end
 
@@ -320,10 +390,12 @@ local function topBtn(kind, x, cb)
     }, { corner(8) })
     local ic = makeIcon(kind, b, 12, Theme.sub)
     b.MouseEnter:Connect(function()
-        tween(b, 0.15, { BackgroundColor3 = Theme.cardHi }); tintIcon(ic, Theme.text)
+        tween(b, 0.15, { BackgroundColor3 = Theme.cardHi })
+        tintIcon(ic, Theme.text)
     end)
     b.MouseLeave:Connect(function()
-        tween(b, 0.15, { BackgroundColor3 = Theme.card }); tintIcon(ic, Theme.sub)
+        tween(b, 0.15, { BackgroundColor3 = Theme.card })
+        tintIcon(ic, Theme.sub)
     end)
     b.MouseButton1Click:Connect(cb)
     return b
@@ -395,7 +467,9 @@ local function selectTab(name)
     for n, t in pairs(tabBtns) do
         local on = n == name
         t.g.Enabled = on
-        tween(t.b, 0.2, { BackgroundColor3 = on and WHITE or Theme.card, TextColor3 = on and Theme.bg or Theme.sub })
+        tween(t.b, 0.2, { BackgroundColor3 = on and WHITE or Theme.card })
+        tween(t.lbl, 0.2, { TextColor3 = on and Theme.bg or Theme.sub })
+        tintIcon(t.ic, on and Theme.bg or Theme.sub)
     end
 end
 
@@ -410,7 +484,15 @@ local content = create("Frame", {
 })
 
 local TAB_NAMES = { "Chat", "Doors", "ESP", "Tracker", "Items", "Player", "Modes" }
-local TAB_ICONS = { Doors = "🚪", ESP = "👁", Tracker = "📡", Items = "🎒", Player = "👤", Modes = "🎮", Chat = "💬" }
+local TAB_ICON_KIND = {
+    Chat = "chat",
+    Doors = "doors",
+    ESP = "esp",
+    Tracker = "tracker",
+    Items = "items",
+    Player = "player",
+    Modes = "modes",
+}
 
 for i, name in ipairs(TAB_NAMES) do
     local page = create("ScrollingFrame", {
@@ -423,14 +505,19 @@ for i, name in ipairs(TAB_NAMES) do
     })
     pages[name] = page
     local b = create("TextButton", {
-        Text = TAB_ICONS[name] .. "  " .. name, Font = FONT_BOLD, TextSize = 12, TextColor3 = Theme.sub,
+        Text = "",
         BackgroundColor3 = Theme.card, AutoButtonColor = false, Size = UDim2.new(1, 0, 0, 34), BorderSizePixel = 0,
-        LayoutOrder = i, TextXAlignment = Enum.TextXAlignment.Left, Parent = side,
-    }, { corner(10), create("UIPadding", { PaddingLeft = UDim.new(0, 12) }) })
+        LayoutOrder = i, Parent = side,
+    }, { corner(10) })
+    local ic = makeIcon(TAB_ICON_KIND[name], b, 15, Theme.sub, UDim2.new(0, 18, 0.5, 0), Vector2.new(0.5, 0.5))
+    local lbl = label({
+        Text = name, Font = FONT_BOLD, TextSize = 12, TextColor3 = Theme.sub,
+        Position = UDim2.new(0, 34, 0, 0), Size = UDim2.new(1, -40, 1, 0), Parent = b,
+    })
     local g = accentGrad()
     g.Enabled = false
     g.Parent = b
-    tabBtns[name] = { b = b, g = g }
+    tabBtns[name] = { b = b, g = g, ic = ic, lbl = lbl }
     b.MouseButton1Click:Connect(function() selectTab(name) end)
 end
 
@@ -663,14 +750,14 @@ local function makeEntityBar(page, title)
             BackgroundColor3 = WHITE, BorderSizePixel = 0, ZIndex = 3, Parent = lane,
         }, { pill(), ds })
         local img = create("ImageLabel", {
-            AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(0, 54), Size = UDim2.fromOffset(22, 22),
+            AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromOffset(0, 54), Size = UDim2.fromOffset(24, 24),
             BackgroundTransparency = 1, BorderSizePixel = 0, ScaleType = Enum.ScaleType.Fit,
-            Visible = false, ZIndex = 3, Parent = lane,
+            Visible = false, ZIndex = 4, Parent = lane,
         })
         local lbl = label({
             Text = "", TextSize = 10, Font = FONT_BOLD, TextXAlignment = Enum.TextXAlignment.Center,
             TextStrokeTransparency = 0.4, AnchorPoint = Vector2.new(0.5, 0), Size = UDim2.fromOffset(40, 14),
-            Position = UDim2.fromOffset(0, 26), ZIndex = 4, Parent = lane,
+            Position = UDim2.fromOffset(0, 26), ZIndex = 5, Parent = lane,
         })
         e = { dot = dot, img = img, stroke = ds, label = lbl, init = false, hasImg = false, lastTry = 0 }
         pool[key] = e
@@ -710,14 +797,14 @@ local function makeEntityBar(page, title)
             e.dot.BackgroundColor3 = it.color
             e.stroke.Color = dark and WHITE or Theme.card
 
-            -- Entity image replaces the dot; the dot remains the fallback.
-            if it.entity and not e.hasImg and os.clock() - e.lastTry > 1 then
+            -- Entity picture replaces the dot
+            if it.entity and not e.hasImg and os.clock() - e.lastTry > 0.5 then
                 e.lastTry = os.clock()
-                local okI, imageData = pcall(findEntityImage, it.entity)
-                if okI and imageData then
-                    e.img.Image = imageData.Image
-                    e.img.ImageRectOffset = imageData.Offset
-                    e.img.ImageRectSize = imageData.Size
+                local okI, src = pcall(findEntityImage, it.entity)
+                if okI and src then
+                    e.img.Image = src.Image
+                    e.img.ImageRectOffset = src.Offset
+                    e.img.ImageRectSize = src.Size
                     e.hasImg = true
                 end
             end
@@ -759,11 +846,12 @@ local function makeInput(page, title, placeholder, onSubmit)
         BorderSizePixel = 0, Parent = row,
     }, { corner(8), create("UIPadding", { PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10) }) })
     local ok = create("TextButton", {
-        Text = "OK", TextSize = 13, Font = FONT_BOLD, TextColor3 = Theme.accentText,
+        Text = "",
         AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -14, 0, 40), Size = UDim2.fromOffset(56, 32),
         BackgroundColor3 = WHITE, AutoButtonColor = false, BorderSizePixel = 0, Parent = row,
     }, { corner(8) })
     accentGrad(45).Parent = ok
+    makeIcon("check", ok, 16, Theme.accentText)
     box.FocusLost:Connect(function(enter) if enter then onSubmit(box.Text) end end)
     ok.Activated:Connect(function() onSubmit(box.Text) end)
 end
@@ -814,12 +902,11 @@ local function dismissToast(entry, fast)
     end)
 end
 
-function notify(text, color, duration, glyph, toCorner)
+function notify(text, color, duration, _, toCorner)
     local list = toCorner and activeCorner or activeToasts
     local holder = toCorner and CornerHolder or ToastHolder
     color = color or Theme.accent
     duration = duration or 3.5
-    glyph = glyph or (color == Theme.on and "✓") or ((color == Theme.warn or color == Theme.danger) and "!") or "i"
 
     for _, e in ipairs(list) do
         if e.text == text and not e.dismissed then e.restart(duration) return end
@@ -837,7 +924,6 @@ function notify(text, color, duration, glyph, toCorner)
     local card = create("CanvasGroup", {
         Size = UDim2.new(1, 0, 0, TOAST_H), BackgroundColor3 = Theme.header, GroupTransparency = 1, Parent = wrap,
     }, { corner(12) })
-    -- border lives on its own frame (outside the CanvasGroup) so the corners stay clean
     local ring = create("Frame", {
         Size = UDim2.new(1, 0, 0, TOAST_H), BackgroundTransparency = 1, BorderSizePixel = 0,
         ZIndex = 5, Parent = wrap,
@@ -850,12 +936,13 @@ function notify(text, color, duration, glyph, toCorner)
         Color = ColorSequence.new(color, isDark(color) and Theme.accent2 or color:Lerp(WHITE, 0.5)),
         Rotation = 35, Parent = ringStroke,
     })
-    local badge = create("TextLabel", {
-        Text = "", TextSize = 14, Font = FONT_BLACK, TextColor3 = color, BackgroundColor3 = color,
+    local badge = create("Frame", {
+        BackgroundColor3 = color,
         BackgroundTransparency = 0.84, Size = UDim2.fromOffset(26, 26), Position = UDim2.fromOffset(10, 11),
         BorderSizePixel = 0, Parent = card,
     }, { corner(8) })
-    makeIcon((color == Theme.on) and "check" or ((color == Theme.warn or color == Theme.danger) and "warn" or "info"), badge, 16, color)
+    makeIcon((color == Theme.on) and "check" or ((color == Theme.warn or color == Theme.danger) and "warn" or "info"),
+        badge, 16, color)
     label({
         Text = text, RichText = true, TextSize = 12, Font = FONT_MED, TextWrapped = true,
         TextTruncate = Enum.TextTruncate.None, TextYAlignment = Enum.TextYAlignment.Center,
@@ -939,10 +1026,8 @@ end
 function Dialog.hide()
     DialogOverlay.Visible = false
     DialogOverlay.Active = false
-
     DialogOverlay.BackgroundTransparency = 1
     DialogCard.GroupTransparency = 1
-
     Dialog.onConfirm = nil
 end
 
@@ -1175,6 +1260,7 @@ local function espRemove(entity)
 end
 
 local function espAdd(entity)
+    if isEspIgnored(entity.Name) then return end
     if ESP.items[entity] then return end
     local root = getRoot(entity)
     if not root then return end
@@ -1282,7 +1368,7 @@ local NavRow = create("Frame", {
 
 local function navBtn(kind, anchorX)
     local b = create("TextButton", {
-        Text = "", TextSize = 20, Font = FONT_BOLD, TextColor3 = Theme.text, AutoButtonColor = false,
+        Text = "", AutoButtonColor = false,
         AnchorPoint = Vector2.new(anchorX, 0.5), Position = UDim2.new(anchorX, anchorX == 0 and 7 or -7, 0.5, 0),
         Size = UDim2.fromOffset(44, 38), BackgroundColor3 = Theme.cardHi, BorderSizePixel = 0, Parent = NavRow,
     }, { corner(9) })
@@ -1373,16 +1459,17 @@ regVariant({
     "A-105", "C-105", "A-100", "X-100", "A-320", "B-170", "B-40",
     "G-55", "CG-55", "G-150", "G-122", "Cate-40", "Noonir-40",
     "Omg-40", "G-10", "CG-10", "T-110", "GodHasForsaken",
-}, " spawned, hide in a table!")
+}, " spawned, hide in a lightwood table!")
 
 regVariant({
     "A-200", "B-120", "CV-300", "FO-300", "G-140", "MY_INNER_SKIN",
-}, " spawned, hide on a grey locker or blue locker!")
+}, " spawned, hide in a grey locker or blue locker!")
 
-regVariant({ "A-185" }, " spawned, hide on a GREY locker or a table!")
+regVariant({ "A-185" }, " spawned, hide in a grey locker or a table!")
 end
 
 local TrackerEvents = { spawned = "—", despawned = "—" }
+local addChatAlert
 
 -- Centered alert card with the entity picture (RushNew.MonsterGui)
 local alertNotify
@@ -1398,7 +1485,6 @@ local AlertHolder = create("Frame", {
     }),
 })
 
--- Finds the entity picture: RushNew.MonsterGui, or any MonsterGui / BillboardGui variant
 local function imageFrom(gui)
     if gui:IsA("StringValue") and gui.Value ~= "" then
         return { Image = gui.Value, Offset = Vector2.zero, Size = Vector2.zero }
@@ -1421,7 +1507,7 @@ end
 
 local IMAGE_GUI_NAMES = { "MonsterGui", "BillboardGui" }
 
-findEntityImage = function(entity)
+function findEntityImage(entity)
     local roots = {}
     local rush = (entity.Name == "RushNew") and entity or entity:FindFirstChild("RushNew", true)
     if rush then table.insert(roots, rush) end
@@ -1436,7 +1522,6 @@ findEntityImage = function(entity)
             end
         end
     end
-    -- last resort: any BillboardGui object inside the entity
     for _, d in ipairs(entity:GetDescendants()) do
         if d:IsA("BillboardGui") then
             local r = imageFrom(d)
@@ -1446,30 +1531,36 @@ findEntityImage = function(entity)
     return nil
 end
 
-local activeAlerts, alertN = {}, 0
+local currentAlert = nil
+local alertN = 0
 local ALERT_SHOW = 4
 
 local function dismissAlert(a, instant)
-    if a.dead then return end
+    if not a or a.dead then return end
     a.dead = true
-    local i = table.find(activeAlerts, a)
-    if i then table.remove(activeAlerts, i) end
+    if currentAlert == a then currentAlert = nil end
     if instant then
-        if a.wrap.Parent then a.wrap:Destroy() end
+        if a.wrap and a.wrap.Parent then a.wrap:Destroy() end
         return
     end
     tween(a.card, 0.25, { GroupTransparency = 1 })
     if a.ringStroke then tween(a.ringStroke, 0.25, { Transparency = 1 }) end
     tween(a.wrap, 0.3, { Size = UDim2.new(1, 0, 0, 0) })
-    task.delay(0.35, function() if a.wrap.Parent then a.wrap:Destroy() end end)
+    task.delay(0.35, function() if a.wrap and a.wrap.Parent then a.wrap:Destroy() end end)
 end
 
 alertNotify = function(entity, suffix)
+    if isAlertIgnored(entity.Name) then return end
     local color = entityColor(entity)
     local accent = isDark(color) and WHITE or color
 
-    -- One alert at a time: replace the current alert immediately.
-    while #activeAlerts >= 1 do dismissAlert(activeAlerts[1], true) end
+    -- Strictly one alert at a time: destroy the current one immediately if a new entity appears
+    if currentAlert then
+        dismissAlert(currentAlert, true)
+    end
+    for _, child in ipairs(AlertHolder:GetChildren()) do
+        if child:IsA("Frame") then child:Destroy() end
+    end
 
     alertN += 1
     local wrap = create("Frame", {
@@ -1480,7 +1571,6 @@ alertNotify = function(entity, suffix)
         Size = UDim2.new(1, 0, 0, 84), BackgroundColor3 = Theme.header, GroupTransparency = 1,
         ZIndex = 31, Parent = wrap,
     }, { corner(14) })
-    -- border on its own frame (outside the CanvasGroup) so the corners stay clean
     local ring = create("Frame", {
         Size = UDim2.new(1, 0, 0, 84), BackgroundTransparency = 1, BorderSizePixel = 0,
         ZIndex = 33, Parent = wrap,
@@ -1494,7 +1584,6 @@ alertNotify = function(entity, suffix)
         Rotation = 35, Parent = ringStroke,
     })
 
-    -- picture only: no frame, no background, no rounded corners
     local img = create("ImageLabel", {
         BackgroundTransparency = 1, BorderSizePixel = 0, Visible = false,
         Size = UDim2.fromOffset(64, 64), Position = UDim2.fromOffset(10, 10),
@@ -1518,9 +1607,8 @@ alertNotify = function(entity, suffix)
     local bar = create("Frame", { Size = UDim2.fromScale(1, 1), BackgroundColor3 = accent, BorderSizePixel = 0, Parent = track }, { pill() })
 
     local a = { wrap = wrap, card = card, ringStroke = ringStroke, dead = false }
-    table.insert(activeAlerts, a)
+    currentAlert = a
 
-    -- the picture may load a moment after the entity spawns: retry for a bit
     task.spawn(function()
         local t0 = os.clock()
         while not a.dead and os.clock() - t0 < 2 do
@@ -1542,7 +1630,7 @@ alertNotify = function(entity, suffix)
     tween(card, 0.25, { GroupTransparency = 0 })
     tween(ringStroke, 0.25, { Transparency = 0.1 })
     tween(bar, ALERT_SHOW, { Size = UDim2.fromScale(0, 1) }, Enum.EasingStyle.Linear)
-    task.delay(ALERT_SHOW, function() dismissAlert(a) end)
+    task.delay(ALERT_SHOW, function() dismissAlert(a, false) end)
 end
 end
 
@@ -1571,6 +1659,14 @@ end
 local function onEntitySpawned(entity)
     if isAlertIgnored(entity.Name) then return end
     TrackerEvents.spawned = entity.Name
+
+    task.spawn(function()
+        task.wait(0.1)
+        if not entity.Parent then return end
+        if addChatAlert then
+            addChatAlert(entity.Name, entityColor(entity))
+        end
+    end)
 
     local key = normalizeName(entity.Name)
     if key == "g-100" then
@@ -2661,7 +2757,6 @@ task.spawn(function()
 end)
 end
 
-
 -- Player ESP: "Display (@Name) | 626m | 100hp"
 local setPlayerESP, teleportToRandomPlayer
 
@@ -2761,6 +2856,7 @@ function teleportToRandomPlayer()
     notify(string.format("Teleported to <b>%s (@%s)</b>.", esc(pick.plr.DisplayName), esc(pick.plr.Name)), Theme.on, 2.5)
 end
 end
+
 local P = pages.Doors
 sectionLabel(P, "Doors")
 Blk.doors = makeToggle(P, "Auto-Open Doors", "Opens doors in room order", function(v)
@@ -2885,15 +2981,16 @@ for _, m in ipairs(MODES) do
 end
 makeParagraph(P, "Entities <b>1-A</b>, <b>1-B</b> and <b>1-G</b> are ignored by alerts, auto-hide, tracker and spectate.", 54)
 
--- Chat tab: Firebase Realtime Database (REST). Never touches the Roblox chat.
+-- Chat tab: Server / Global / Alerts
 local Chat = {
     DB = "https://rld-chat-8b60b-default-rtdb.firebaseio.com/",
     HOST = "Web_Julio9",
-    BAD_WORDS = { "ososo", "idisowo", "ididi", "jdjd", "jsjs", "idododos", "snaj", "ksisosisisi" },
-    running = false, msgs = {}, order = {}, dbIds = {}, seq = 0, users = {},
-    activeUntil = 0, errShown = false, loaded = false,
-    MAX_STRIKES = 20,      -- bad words OR rapid-fire messages before the kick
-    SPAM_GAP = 1,          -- messages closer than this (seconds) count as spam
+    BAD_WORDS = { "porra", "caralho", "puta", "fdp", "merda", "fuck", "shit", "bitch" },
+    running = false,
+    channel = "Server", -- "Server" | "Global" | "Alerts"
+    channels = {},
+    MAX_STRIKES = 20,
+    SPAM_GAP = 1,
     KICK_MSG = "You have been kicked from this script, try not to swear again.",
     strikes = 0, spam = 0, lastAttempt = 0,
 }
@@ -2906,17 +3003,55 @@ local HttpService = game:GetService("HttpService")
 
 P = pages.Chat
 sectionLabel(P, "Chat")
-local setChatUsers = makeStatus(P, "Chat status")
 
-local chatRow = baseRow(P, 190)
-local chatScroll = create("ScrollingFrame", {
-    Position = UDim2.fromOffset(8, 8), Size = UDim2.new(1, -16, 1, -16), BackgroundTransparency = 1,
-    BorderSizePixel = 0, ScrollBarThickness = 3, ScrollBarImageColor3 = Theme.accent,
-    CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y, Parent = chatRow,
+-- Channel switcher: Server | Global | Alerts
+local subRow = baseRow(P, 38)
+local subHolder = create("Frame", {
+    Position = UDim2.fromOffset(4, 4), Size = UDim2.new(1, -8, 1, -8),
+    BackgroundTransparency = 1, Parent = subRow,
 }, {
-    create("UIListLayout", { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder }),
-    create("UIPadding", { PaddingRight = UDim.new(0, 6) }),
+    create("UIListLayout", {
+        FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 4),
+        SortOrder = Enum.SortOrder.LayoutOrder,
+    }),
 })
+
+local subBtns = {}
+local CHANNEL_LIST = { "Server", "Global", "Alerts" }
+
+local statusRow = baseRow(P, 50)
+label({
+    Text = "CHAT STATUS", TextSize = 10, Font = FONT_BOLD, TextColor3 = Theme.sub,
+    Position = UDim2.fromOffset(14, 8), Size = UDim2.new(1, -28, 0, 13), Parent = statusRow,
+})
+local statusDot = create("Frame", {
+    Size = UDim2.fromOffset(8, 8), Position = UDim2.fromOffset(14, 31), BackgroundColor3 = Theme.on,
+    BorderSizePixel = 0, Parent = statusRow,
+}, { pill() })
+local statusVal = label({
+    Text = "...", TextSize = 12, Font = FONT_MONO, TextColor3 = Theme.text,
+    TextTruncate = Enum.TextTruncate.AtEnd, Position = UDim2.fromOffset(30, 25),
+    Size = UDim2.new(1, -44, 0, 18), Parent = statusRow,
+})
+local function setChatUsers(text, tone)
+    statusVal.Text = text
+    if tone then tween(statusDot, 0.3, { BackgroundColor3 = tone }) end
+end
+
+local chatRow = baseRow(P, 166)
+local scrolls = {}
+for _, chName in ipairs(CHANNEL_LIST) do
+    scrolls[chName] = create("ScrollingFrame", {
+        Name = chName .. "Scroll",
+        Position = UDim2.fromOffset(8, 8), Size = UDim2.new(1, -16, 1, -16), BackgroundTransparency = 1,
+        BorderSizePixel = 0, ScrollBarThickness = 3, ScrollBarImageColor3 = Theme.accent,
+        CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y,
+        Visible = (chName == "Server"), Parent = chatRow,
+    }, {
+        create("UIListLayout", { Padding = UDim.new(0, 5), SortOrder = Enum.SortOrder.LayoutOrder }),
+        create("UIPadding", { PaddingRight = UDim.new(0, 6) }),
+    })
+end
 
 local inRow = baseRow(P, 52)
 local chatBox = create("TextBox", {
@@ -2926,23 +3061,79 @@ local chatBox = create("TextBox", {
     BorderSizePixel = 0, Parent = inRow,
 }, { corner(8), create("UIPadding", { PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10) }) })
 local sendBtn = create("TextButton", {
-    Text = "Send", TextSize = 13, Font = FONT_BOLD, TextColor3 = Theme.accentText,
+    Text = "",
     AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, -12, 0, 10), Size = UDim2.fromOffset(56, 32),
     BackgroundColor3 = WHITE, AutoButtonColor = false, BorderSizePixel = 0, Parent = inRow,
 }, { corner(8) })
 accentGrad(45).Parent = sendBtn
+makeIcon("send", sendBtn, 16, Theme.accentText)
 
--- one channel per server, so people only talk to those in the same server
-do
-    local jid = (game.JobId ~= "" and game.JobId) or tostring(game.PlaceId)
-    Chat.base = Chat.DB .. "chat/" .. (string.gsub(jid, "[^%w]", ""))
-end
+local jid = (game.JobId ~= "" and game.JobId) or tostring(game.PlaceId)
+local cleanJid = string.gsub(jid, "[^%w]", "")
 
-local function scrollDown()
+Chat.channels = {
+    Server = {
+        base = Chat.DB .. "chat/" .. cleanJid,
+        msgs = {}, order = {}, dbIds = {}, seq = 0,
+        activeUntil = 0, loaded = false, statusText = "Connecting...", statusTone = Theme.warn,
+    },
+    Global = {
+        base = Chat.DB .. "global_chat",
+        msgs = {}, order = {}, dbIds = {}, seq = 0,
+        activeUntil = 0, loaded = false, statusText = "Global chat · all games", statusTone = Theme.accent2,
+    },
+    Alerts = {
+        msgs = {}, order = {}, seq = 0,
+        statusText = "Local server entity spawns", statusTone = Theme.on,
+    },
+}
+
+local function scrollDown(chName)
+    local sc = scrolls[chName]
+    if not sc then return end
     task.defer(function()
         task.wait()
-        chatScroll.CanvasPosition = Vector2.new(0, chatScroll.AbsoluteCanvasSize.Y)
+        if sc and sc.Parent then
+            sc.CanvasPosition = Vector2.new(0, sc.AbsoluteCanvasSize.Y)
+        end
     end)
+end
+
+local function switchChatChannel(chName)
+    Chat.channel = chName
+    for name, btnInfo in pairs(subBtns) do
+        local on = (name == chName)
+        btnInfo.g.Enabled = on
+        tween(btnInfo.b, 0.18, { BackgroundColor3 = on and WHITE or Theme.cardHi, TextColor3 = on and Theme.bg or Theme.sub })
+    end
+    for name, sc in pairs(scrolls) do
+        sc.Visible = (name == chName)
+    end
+    local isAlerts = (chName == "Alerts")
+    statusRow.Visible = not isAlerts
+    inRow.Visible = not isAlerts
+    chatRow.Size = isAlerts and UDim2.new(1, 0, 0, 276) or UDim2.new(1, 0, 0, 166)
+
+    if not isAlerts then
+        local st = Chat.channels[chName]
+        setChatUsers(st.statusText, st.statusTone)
+    end
+    scrollDown(chName)
+end
+
+for i, name in ipairs(CHANNEL_LIST) do
+    local b = create("TextButton", {
+        Text = name, Font = FONT_BOLD, TextSize = 12,
+        TextColor3 = (name == "Server") and Theme.bg or Theme.sub,
+        BackgroundColor3 = (name == "Server") and WHITE or Theme.cardHi,
+        AutoButtonColor = false, Size = UDim2.new(1 / 3, -3, 1, 0),
+        BorderSizePixel = 0, LayoutOrder = i, Parent = subHolder,
+    }, { corner(8) })
+    local g = accentGrad()
+    g.Enabled = (name == "Server")
+    g.Parent = b
+    subBtns[name] = { b = b, g = g }
+    b.MouseButton1Click:Connect(function() switchChatChannel(name) end)
 end
 
 function Chat.isBad(text)
@@ -2953,7 +3144,7 @@ function Chat.isBad(text)
     return false
 end
 
--- speech bubble above a player's head, drawn by the script (script users see it)
+-- Speech bubble above a player's head (Server chat only)
 Chat.bubbles = {}
 function Chat.bubble(plr, text)
     local char = plr and plr.Character
@@ -2994,11 +3185,13 @@ function Chat.bubble(plr, text)
     end)
 end
 
--- Firebase REST helper: returns decoded JSON (or nil), HTTP status
-function Chat.req(method, path, body, query)
+-- Firebase REST helper per channel
+function Chat.req(chName, method, path, body, query)
     if not Chat.http then return nil, 0 end
+    local st = Chat.channels[chName]
+    if not st or not st.base then return nil, 0 end
     local ok, res = pcall(Chat.http, {
-        Url = Chat.base .. path .. ".json" .. (query or ""),
+        Url = st.base .. path .. ".json" .. (query or ""),
         Method = method,
         Headers = { ["Content-Type"] = "application/json" },
         Body = body ~= nil and HttpService:JSONEncode(body) or nil,
@@ -3012,22 +3205,26 @@ function Chat.req(method, path, body, query)
     return data, tonumber(res.StatusCode) or 0
 end
 
--- messages ------------------------------------------------------------
-function Chat.removeMessage(id)
-    local m = Chat.msgs[id]
-    Chat.dbIds[id] = nil
+function Chat.removeMessage(chName, id)
+    local st = Chat.channels[chName]
+    if not st then return end
+    local m = st.msgs[id]
+    if st.dbIds then st.dbIds[id] = nil end
     if not m then return end
-    Chat.msgs[id] = nil
-    local i = table.find(Chat.order, id)
-    if i then table.remove(Chat.order, i) end
-    if m.frame.Parent then m.frame:Destroy() end
+    st.msgs[id] = nil
+    local i = table.find(st.order, id)
+    if i then table.remove(st.order, i) end
+    if m.frame and m.frame.Parent then m.frame:Destroy() end
 end
 
-function Chat.addRow(id, richText, deletable)
-    Chat.seq += 1
+function Chat.addRow(chName, id, richText, deletable)
+    local st = Chat.channels[chName]
+    local sc = scrolls[chName]
+    if not st or not sc then return end
+    st.seq += 1
     local frame = create("Frame", {
         Size = UDim2.new(1, 0, 0, 0), AutomaticSize = Enum.AutomaticSize.Y, BackgroundTransparency = 1,
-        LayoutOrder = Chat.seq, Parent = chatScroll,
+        LayoutOrder = st.seq, Parent = sc,
     })
     label({
         Text = richText, RichText = true, TextSize = 12, TextWrapped = true,
@@ -3036,71 +3233,141 @@ function Chat.addRow(id, richText, deletable)
     })
     if deletable then
         local del = create("TextButton", {
-            Text = "", TextSize = 12, Font = FONT_BOLD, TextColor3 = Theme.danger,
-            AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 0), Size = UDim2.fromOffset(22, 20),
-            BackgroundColor3 = Theme.cardHi, AutoButtonColor = false, BorderSizePixel = 0, Parent = frame,
+            Text = "", AnchorPoint = Vector2.new(1, 0), Position = UDim2.new(1, 0, 0, 0),
+            Size = UDim2.fromOffset(22, 20), BackgroundColor3 = Theme.cardHi,
+            AutoButtonColor = false, BorderSizePixel = 0, Parent = frame,
         }, { corner(6) })
         makeIcon("close", del, 10, Theme.danger)
         del.Activated:Connect(function()
-            Chat.removeMessage(id)
-            task.spawn(Chat.req, "DELETE", "/messages/" .. id)
+            Chat.removeMessage(chName, id)
+            task.spawn(Chat.req, chName, "DELETE", "/messages/" .. id)
         end)
     end
-    table.insert(Chat.order, id)
-    Chat.msgs[id] = { frame = frame }
-    while #Chat.order > 150 do
-        local old = table.remove(Chat.order, 1)
-        local m = Chat.msgs[old]
-        Chat.msgs[old] = nil
-        Chat.dbIds[old] = nil
-        if m and m.frame.Parent then m.frame:Destroy() end
+    table.insert(st.order, id)
+    st.msgs[id] = { frame = frame }
+    while #st.order > 150 do
+        local old = table.remove(st.order, 1)
+        local m = st.msgs[old]
+        st.msgs[old] = nil
+        if st.dbIds then st.dbIds[old] = nil end
+        if m and m.frame and m.frame.Parent then m.frame:Destroy() end
     end
-    scrollDown()
+    if Chat.channel == chName then scrollDown(chName) end
 end
 
-function Chat.upsert(id, rec)
-    if Chat.msgs[id] or type(rec) ~= "table" then return end
+-- Local Alerts tab entry: [👑 Freeman]: (static rainbow) + {entity_name} (entity color) + spawned, hide! (red)
+local RAINBOW_SEQ = ColorSequence.new({
+    ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255, 65, 65)),
+    ColorSequenceKeypoint.new(0.18, Color3.fromRGB(255, 165, 45)),
+    ColorSequenceKeypoint.new(0.36, Color3.fromRGB(255, 235, 60)),
+    ColorSequenceKeypoint.new(0.54, Color3.fromRGB(70, 230, 110)),
+    ColorSequenceKeypoint.new(0.72, Color3.fromRGB(65, 195, 255)),
+    ColorSequenceKeypoint.new(0.88, Color3.fromRGB(165, 95, 255)),
+    ColorSequenceKeypoint.new(1.00, Color3.fromRGB(255, 75, 185)),
+})
+
+addChatAlert = function(entityName, color)
+    local st = Chat.channels.Alerts
+    local sc = scrolls.Alerts
+    if not st or not sc then return end
+    st.seq += 1
+    local id = "alert_" .. tostring(st.seq)
+
+    local frame = create("Frame", {
+        Size = UDim2.new(1, 0, 0, 20), BackgroundTransparency = 1,
+        LayoutOrder = st.seq, Parent = sc,
+    }, {
+        create("UIListLayout", {
+            FillDirection = Enum.FillDirection.Horizontal,
+            VerticalAlignment = Enum.VerticalAlignment.Center,
+            SortOrder = Enum.SortOrder.LayoutOrder,
+        }),
+    })
+
+    -- [👑 Freeman]: with static rainbow UIGradient
+    local prefixLbl = label({
+        Text = "[👑 Freeman]: ",
+        TextSize = 12, Font = FONT_BOLD, TextColor3 = WHITE,
+        AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.fromOffset(0, 18),
+        LayoutOrder = 1, Parent = frame,
+    })
+    create("UIGradient", { Color = RAINBOW_SEQ, Rotation = 0, Parent = prefixLbl })
+
+    -- {entity_name} in entity color + " spawned, hide!" in red
+    local bodyLbl = label({
+        Text = "<b>" .. richName(entityName, color) .. '</b> <font color="#E54D52">spawned, hide!</font>',
+        RichText = true, TextSize = 12, Font = FONT_BOLD,
+        AutomaticSize = Enum.AutomaticSize.XY, Size = UDim2.fromOffset(0, 18),
+        LayoutOrder = 2, Parent = frame,
+    })
+    bodyLbl.BackgroundTransparency = 1
+
+    table.insert(st.order, id)
+    st.msgs[id] = { frame = frame }
+    while #st.order > 150 do
+        local old = table.remove(st.order, 1)
+        local m = st.msgs[old]
+        st.msgs[old] = nil
+        if m and m.frame and m.frame.Parent then m.frame:Destroy() end
+    end
+    if Chat.channel == "Alerts" then scrollDown("Alerts") end
+end
+
+function Chat.upsert(chName, id, rec)
+    local st = Chat.channels[chName]
+    if not st or st.msgs[id] or type(rec) ~= "table" then return end
     local text = tostring(rec.m or "")
     local uid = tonumber(rec.i)
     if text == "" or not uid then return end
 
-    -- host removes bad words for everyone
     if Chat.isHost and Chat.isBad(text) then
-        task.spawn(Chat.req, "DELETE", "/messages/" .. id)
+        task.spawn(Chat.req, chName, "DELETE", "/messages/" .. id)
         return
     end
     if Chat.isBad(text) then return end
 
-    -- the name comes from the real player in the server, not from what the record claims
     local plr = Players:GetPlayerByUserId(uid)
     local name = plr and plr.Name or tostring(rec.u or "?")
     local display = plr and plr.DisplayName or tostring(rec.d or "")
     local who = (display ~= "" and display ~= name) and (display .. " (@" .. name .. ")") or name
 
-    Chat.dbIds[id] = true
+    st.dbIds[id] = true
     local own = uid == LocalPlayer.UserId
-    -- Owner only for the configured host account; everyone else is a member.
-    local isOwner = plr ~= nil and plr.Name == Chat.HOST
+    local isOwner = (name == Chat.HOST) and (chName == "Global" or plr ~= nil)
     local tag = isOwner and '<font color="#FFD966"><b>👑 Owner</b></font>  ' or '<font color="#9EA3B8">👤 Member</font>  '
-    Chat.addRow(id, tag .. "<b>" .. esc(who) .. "</b>: " .. esc(text), own or Chat.isHost)
-    if Chat.loaded then
-        notify("New message!", Theme.accent2, 2.5, nil, true)
-        if plr then pcall(Chat.bubble, plr, text) end
+    Chat.addRow(chName, id, tag .. "<b>" .. esc(who) .. "</b>: " .. esc(text), own or Chat.isHost)
+
+    if st.loaded then
+        notify("New " .. chName .. " message!", Theme.accent2, 2.5, nil, true)
+        if chName == "Server" and plr then
+            pcall(Chat.bubble, plr, text)
+        end
     end
 end
 
--- polling -------------------------------------------------------------
-function Chat.fail(status)
+function Chat.setChannelStatus(chName, text, tone)
+    local st = Chat.channels[chName]
+    if not st then return end
+    st.statusText = text
+    st.statusTone = tone
+    if Chat.channel == chName then
+        setChatUsers(text, tone)
+    end
+end
+
+function Chat.fail(chName, status)
     if status == 401 or status == 403 then
-        setChatUsers("Firebase: access denied (check rules)", Theme.danger)
+        Chat.setChannelStatus(chName, "Firebase: access denied (check rules)", Theme.danger)
     else
-        setChatUsers("Connection problem (" .. tostring(status) .. ")", Theme.warn)
+        Chat.setChannelStatus(chName, "Connection problem (" .. tostring(status) .. ")", Theme.warn)
     end
 end
 
-function Chat.poll()
-    local data, status = Chat.req("GET", "/messages", nil, '?orderBy=%22%24key%22&limitToLast=40')
-    if status ~= 200 then Chat.fail(status) return false end
+function Chat.poll(chName)
+    local st = Chat.channels[chName]
+    if not st then return false end
+    local data, status = Chat.req(chName, "GET", "/messages", nil, '?orderBy=%22%24key%22&limitToLast=40')
+    if status ~= 200 then Chat.fail(chName, status) return false end
     local keys, set = {}, {}
     if type(data) == "table" then
         for k in pairs(data) do table.insert(keys, k) end
@@ -3108,22 +3375,25 @@ function Chat.poll()
     end
     for _, k in ipairs(keys) do
         set[k] = true
-        local before = Chat.msgs[k] == nil
-        Chat.upsert(k, data[k])
-        if before and Chat.msgs[k] then Chat.activeUntil = os.clock() + 30 end
+        local before = st.msgs[k] == nil
+        Chat.upsert(chName, k, data[k])
+        if before and st.msgs[k] then st.activeUntil = os.clock() + 30 end
     end
-    -- messages deleted on the database disappear here too
     local minKey = keys[1]
-    for id in pairs(Chat.dbIds) do
-        if not set[id] and (not minKey or id >= minKey) then Chat.removeMessage(id) end
+    for id in pairs(st.dbIds) do
+        if not set[id] and (not minKey or id >= minKey) then Chat.removeMessage(chName, id) end
     end
-    Chat.loaded = true
+    if chName == "Global" and not st.loaded then
+        Chat.setChannelStatus("Global", "Global chat · all games", Theme.accent2)
+    end
+    st.loaded = true
     return true
 end
 
 function Chat.presence()
-    Chat.req("PUT", "/users/" .. LocalPlayer.UserId, { n = LocalPlayer.Name, t = os.time() })
-    local data, status = Chat.req("GET", "/users")
+    -- Server-only presence (Global does not show server players)
+    Chat.req("Server", "PUT", "/users/" .. LocalPlayer.UserId, { n = LocalPlayer.Name, t = os.time() })
+    local data, status = Chat.req("Server", "GET", "/users")
     if status ~= 200 then return end
     local now, names, n = os.time(), {}, 0
     if type(data) == "table" then
@@ -3141,22 +3411,24 @@ function Chat.presence()
     if n == 0 then n, names = 1, { LocalPlayer.Name } end
     local shown = {}
     for i = 1, math.min(#names, 5) do shown[i] = names[i] end
-    setChatUsers(string.format("%d online · %s%s", n, table.concat(shown, ", "), #names > 5 and "..." or ""),
+    Chat.setChannelStatus("Server",
+        string.format("%d online · %s%s", n, table.concat(shown, ", "), #names > 5 and "..." or ""),
         n > 1 and Theme.on or Theme.warn)
 end
 
--- sending -------------------------------------------------------------
 function Chat.kickSelf()
     Chat.running = false
     pcall(function() LocalPlayer:Kick(Chat.KICK_MSG) end)
 end
 
 function Chat.send(text)
+    if Chat.channel == "Alerts" then return end
+    local targetCh = Chat.channel
+
     text = string.gsub(tostring(text or ""), "^%s+", "")
     text = string.gsub(text, "%s+$", "")
     if text == "" then return end
 
-    -- spam guard: too many messages in a row, too fast
     local now = os.clock()
     local gap = now - Chat.lastAttempt
     Chat.lastAttempt = now
@@ -3171,7 +3443,6 @@ function Chat.send(text)
     local cut = utf8.offset(text, 201)
     if cut then text = string.sub(text, 1, cut - 1) end
 
-    -- bad word guard
     if Chat.isBad(text) then
         Chat.strikes += 1
         if Chat.strikes >= Chat.MAX_STRIKES then Chat.kickSelf() return end
@@ -3183,12 +3454,12 @@ function Chat.send(text)
         return
     end
     chatBox.Text = ""
-    Chat.activeUntil = os.clock() + 30
+    Chat.channels[targetCh].activeUntil = os.clock() + 30
     task.spawn(function()
         local rec = { u = LocalPlayer.Name, i = LocalPlayer.UserId, d = LocalPlayer.DisplayName, m = text, t = os.time() }
-        local data, status = Chat.req("POST", "/messages", rec)
+        local data, status = Chat.req(targetCh, "POST", "/messages", rec)
         if status == 200 and type(data) == "table" and data.name then
-            Chat.upsert(data.name, rec)
+            Chat.upsert(targetCh, data.name, rec)
         else
             chatBox.Text = text
             notify("Failed to send (" .. tostring(status) .. ").", Theme.danger, 3)
@@ -3200,25 +3471,31 @@ sendBtn.Activated:Connect(function() Chat.send(chatBox.Text) end)
 
 function Chat.start()
     if not Chat.http then
-        setChatUsers("Executor without HTTP request", Theme.danger)
+        Chat.setChannelStatus("Server", "Executor without HTTP request", Theme.danger)
+        Chat.setChannelStatus("Global", "Executor without HTTP request", Theme.danger)
         notify("Chat needs an executor with <b>request</b> / <b>http_request</b>.", Theme.danger, 5)
         return
     end
     Chat.running = true
-    setChatUsers("Connecting...", Theme.warn)
+    Chat.setChannelStatus("Server", "Connecting...", Theme.warn)
+    Chat.setChannelStatus("Global", "Global chat · all games", Theme.accent2)
+
     bind(Players.PlayerRemoving, function(p)
         if p == LocalPlayer then return end
-        task.spawn(Chat.req, "DELETE", "/users/" .. p.UserId)
+        task.spawn(Chat.req, "Server", "DELETE", "/users/" .. p.UserId)
     end)
+
     task.spawn(function()
         local lastPresence = 0
         while ScreenGui.Parent and Chat.running do
-            pcall(Chat.poll)
+            pcall(Chat.poll, "Server")
+            pcall(Chat.poll, "Global")
             if os.clock() - lastPresence >= 15 then
                 lastPresence = os.clock()
                 pcall(Chat.presence)
             end
-            task.wait(os.clock() < Chat.activeUntil and 1.5 or 3)
+            local fast = os.clock() < Chat.channels.Server.activeUntil or os.clock() < Chat.channels.Global.activeUntil
+            task.wait(fast and 1.5 or 3)
         end
     end)
 end
@@ -3226,7 +3503,7 @@ end
 function Chat.stop()
     if not Chat.running then return end
     Chat.running = false
-    task.spawn(Chat.req, "DELETE", "/users/" .. LocalPlayer.UserId)
+    task.spawn(Chat.req, "Server", "DELETE", "/users/" .. LocalPlayer.UserId)
 end
 
 Chat.start()
