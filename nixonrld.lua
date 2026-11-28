@@ -6,6 +6,8 @@ local TextService      = game:GetService("TextService")
 local Workspace        = game:GetService("Workspace")
 local Lighting         = game:GetService("Lighting")
 local CoreGui          = game:GetService("CoreGui")
+local StarterGui       = game:GetService("StarterGui")
+local TextChatService  = game:GetService("TextChatService")
 
 local LocalPlayer = Players.LocalPlayer
 
@@ -209,7 +211,7 @@ local function label(props)
     return create("TextLabel", props)
 end
 
--- Vector icons drawn purely with UI frames (zero text glyphs/characters)
+-- Refined vector icons drawn purely with UI frames
 local function makeIcon(kind, parent, size, color, pos, anchor)
     local box = create("Frame", {
         Name = "Icon",
@@ -259,49 +261,49 @@ local function makeIcon(kind, parent, size, color, pos, anchor)
     elseif kind == "minus" then
         bar(0.75, t, 0, 0.5, 0.5)
     elseif kind == "chevronRight" then
-        bar(0.48, t, 45, 0.5, 0.5 - 0.17)
-        bar(0.48, t, -45, 0.5, 0.5 + 0.17)
+        bar(0.52, t, 38, 0.5, 0.5 - 0.18)
+        bar(0.52, t, -38, 0.5, 0.5 + 0.18)
     elseif kind == "chevronLeft" then
-        bar(0.48, t, -45, 0.5, 0.5 - 0.17)
-        bar(0.48, t, 45, 0.5, 0.5 + 0.17)
+        bar(0.52, t, -38, 0.5, 0.5 - 0.18)
+        bar(0.52, t, 38, 0.5, 0.5 + 0.18)
     elseif kind == "check" then
-        bar(0.32, t, 45, 0.27, 0.60)
-        bar(0.62, t, -45, 0.58, 0.49)
+        bar(0.34, t, 45, 0.27, 0.60)
+        bar(0.66, t, -45, 0.58, 0.48)
     elseif kind == "warn" then
-        bar(0.48, t + 0.4, 90, 0.5, 0.35)
-        dot(0.16, 0.5, 0.78)
+        bar(0.52, t + 0.4, 90, 0.5, 0.35)
+        dot(0.18, 0.5, 0.78)
     elseif kind == "send" then
-        bar(0.65, t, -35, 0.48, 0.48)
-        bar(0.36, t, 10, 0.62, 0.31)
-        bar(0.36, t, 80, 0.67, 0.41)
+        bar(0.68, t, -35, 0.48, 0.48)
+        bar(0.38, t, 12, 0.64, 0.30)
+        bar(0.38, t, 78, 0.68, 0.42)
     elseif kind == "chat" then
-        ring(0.82, 0.64, 0.5, 0.44, corner(4))
-        bar(0.28, t, -45, 0.32, 0.80)
-        bar(0.35, t * 0.85, 0, 0.5, 0.38)
-        bar(0.24, t * 0.85, 0, 0.45, 0.52)
+        ring(0.86, 0.68, 0.5, 0.44, corner(5))
+        bar(0.32, t, -42, 0.34, 0.82)
+        bar(0.38, t * 0.85, 0, 0.5, 0.38)
+        bar(0.26, t * 0.85, 0, 0.44, 0.52)
     elseif kind == "doors" then
-        ring(0.56, 0.86, 0.5, 0.5, corner(3))
-        dot(0.14, 0.64, 0.52)
+        ring(0.60, 0.90, 0.5, 0.5, corner(4))
+        dot(0.16, 0.66, 0.52)
     elseif kind == "esp" then
-        ring(0.88, 0.54, 0.5, 0.5)
-        dot(0.28, 0.5, 0.5)
+        ring(0.92, 0.58, 0.5, 0.5)
+        dot(0.30, 0.5, 0.5)
     elseif kind == "tracker" then
-        ring(0.86, 0.86, 0.5, 0.5)
-        ring(0.48, 0.48, 0.5, 0.5)
-        dot(0.18, 0.5, 0.5)
+        ring(0.90, 0.90, 0.5, 0.5)
+        ring(0.52, 0.52, 0.5, 0.5)
+        dot(0.20, 0.5, 0.5)
     elseif kind == "items" then
-        ring(0.70, 0.64, 0.5, 0.58, corner(4))
-        ring(0.38, 0.32, 0.5, 0.26, corner(4))
+        ring(0.74, 0.68, 0.5, 0.58, corner(5))
+        ring(0.42, 0.35, 0.5, 0.25, corner(4))
     elseif kind == "player" then
-        ring(0.36, 0.36, 0.5, 0.30)
-        ring(0.68, 0.38, 0.5, 0.76, corner(5))
+        ring(0.40, 0.40, 0.5, 0.28)
+        ring(0.74, 0.42, 0.5, 0.76, corner(6))
     elseif kind == "modes" then
-        ring(0.86, 0.58, 0.5, 0.52, corner(5))
-        bar(0.24, t * 0.85, 0, 0.33, 0.52)
-        bar(0.24, t * 0.85, 90, 0.33, 0.52)
-        dot(0.13, 0.68, 0.45)
-        dot(0.13, 0.68, 0.60)
-    else -- info
+        ring(0.90, 0.62, 0.5, 0.52, corner(6))
+        bar(0.26, t * 0.85, 0, 0.33, 0.52)
+        bar(0.26, t * 0.85, 90, 0.33, 0.52)
+        dot(0.14, 0.68, 0.44)
+        dot(0.14, 0.68, 0.60)
+    else
         dot(0.16, 0.5, 0.24)
         bar(0.42, t + 0.4, 90, 0.5, 0.60)
     end
@@ -520,7 +522,6 @@ for i, name in ipairs(TAB_NAMES) do
     tabBtns[name] = { b = b, g = g, ic = ic, lbl = lbl }
     b.MouseButton1Click:Connect(function() selectTab(name) end)
 end
-
 end
 
 local function sectionLabel(page, text)
@@ -625,6 +626,7 @@ local function makeButton(page, title, sub, onClick, danger, rich)
             tintIcon(chevIcon, Theme.sub)
         end)
     btn.Activated:Connect(function() task.spawn(onClick) end)
+    return row
 end
 
 local function makeParagraph(page, text, h)
@@ -797,7 +799,6 @@ local function makeEntityBar(page, title)
             e.dot.BackgroundColor3 = it.color
             e.stroke.Color = dark and WHITE or Theme.card
 
-            -- Entity picture replaces the dot
             if it.entity and not e.hasImg and os.clock() - e.lastTry > 0.5 then
                 e.lastTry = os.clock()
                 local okI, src = pcall(findEntityImage, it.entity)
@@ -978,6 +979,28 @@ end
 
 end
 
+-- Center middle warning overlay for teleport blocks (5 seconds)
+local function centerWarning(text)
+    local holder = create("Frame", {
+        Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1,
+        ZIndex = 100, Parent = ScreenGui,
+    })
+    local card = create("CanvasGroup", {
+        AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.fromScale(0.5, 0.4),
+        Size = UDim2.fromOffset(420, 60), BackgroundColor3 = Theme.header, GroupTransparency = 1,
+        ZIndex = 101, Parent = holder,
+    }, { corner(12), stroke(Theme.danger, 2, 0) })
+    label({
+        Text = text, RichText = true, TextSize = 13, Font = FONT_BOLD, TextColor3 = Theme.text,
+        TextXAlignment = Enum.TextXAlignment.Center, Size = UDim2.fromScale(1, 1), Parent = card,
+    })
+    tween(card, 0.25, { GroupTransparency = 0 })
+    task.delay(5, function()
+        tween(card, 0.25, { GroupTransparency = 1 })
+        task.delay(0.3, function() if holder.Parent then holder:Destroy() end end)
+    end)
+end
+
 local Dialog = { onConfirm = nil, base = Theme.accent, hi = Theme.accent }
 
 do
@@ -1073,7 +1096,7 @@ local function getAllEntities()
     if not folder then return list end
     for _, obj in ipairs(folder:GetDescendants()) do
         if obj:IsA("Model") or obj:IsA("BasePart") then
-            if obj.Name == "B-65" then pcall(function() obj.Name = "B-67" end) end -- B-65 is really B-67
+            if obj.Name == "B-65" then pcall(function() obj.Name = "B-67" end) end
             local ancestor = obj.Parent
             local insideModel = false
             while ancestor and ancestor ~= folder do
@@ -1322,7 +1345,6 @@ task.spawn(function()
         task.wait(0.1)
     end
 end)
-
 end
 
 local Spec = { active = false, entity = nil }
@@ -1471,7 +1493,7 @@ end
 local TrackerEvents = { spawned = "—", despawned = "—" }
 local addChatAlert
 
--- Centered alert card with the entity picture (RushNew.MonsterGui)
+-- Centered alert card with the entity picture
 local alertNotify
 do
 local AlertHolder = create("Frame", {
@@ -1554,7 +1576,6 @@ alertNotify = function(entity, suffix)
     local color = entityColor(entity)
     local accent = isDark(color) and WHITE or color
 
-    -- Strictly one alert at a time: destroy the current one immediately if a new entity appears
     if currentAlert then
         dismissAlert(currentAlert, true)
     end
@@ -1645,7 +1666,7 @@ local function watchG100(entity)
 
         if AlertOn then
             if playingSpawn and not prevSpawn then
-                alertNotify(entity, " spawned, hide on a grey or blue locker!")
+                alertNotify(entity, " spawned, hide in a grey or blue locker!")
             end
             if playingTransition and not prevTrans then
                 alertNotify(entity, " will check gray lockers now, hide in a blue locker or table!")
@@ -1794,6 +1815,7 @@ function setFullbright(v)
 end
 end
 
+-- ANTI-VOID: only activated if player Y position is <= 2
 local setAntiVoid
 do
 local AV = { conn = nil, floor = nil, floorY = nil, lastGround = nil }
@@ -1824,6 +1846,12 @@ function setAntiVoid(v)
             return
         end
         local pos = hrp.Position
+
+        -- Only activate if player Y <= 2
+        if pos.Y > 2 then
+            avRemoveFloor()
+            return
+        end
 
         if AV.floor then
             AV.floor.Position = Vector3.new(pos.X, AV.floorY - 3, pos.Z)
@@ -1927,9 +1955,9 @@ function showShakerDialog()
         onConfirm = activateShakerDelete,
     })
 end
-
 end
 
+-- Robust section & room scanning supporting rooms starting at room 2
 local function getSections()
     local out = {}
     for _, id in ipairs(SECTION_IDS) do
@@ -2098,20 +2126,51 @@ local function isSpotFree(pos, char)
     return true
 end
 
+-- Checks if any entity is within 500 meters of a given position
+local function checkEntityNear(pos)
+    for _, entity in ipairs(getEntities()) do
+        if isThreatEntity(entity) then
+            local ok, epos = pcall(entityPos, entity)
+            if ok and typeof(epos) == "Vector3" then
+                if (epos - pos).Magnitude <= 500 then
+                    return true, entity.Name
+                end
+            end
+        end
+    end
+    return false, nil
+end
+
 local function teleportToLastRoom()
     local hrp = getHRP()
     if not hrp then
         notify("Character not loaded or currently dead.", Theme.warn)
         return
     end
+
+    -- Check if entity is close to player (500m)
+    local nearP, nameP = checkEntityNear(hrp.Position)
+    if nearP then
+        centerWarning(string.format("There is an entity close to the player: %s.", nameP))
+        return
+    end
+
     local t, pending = getPendingRoom()
     if not t then
         notify("No doors found in <b>Workspace.CurrentRooms*</b>.", Theme.warn)
         return
     end
+
     local cf, size = doorFrame(t.door)
     if not cf then
         notify("Door of room <b>" .. t.num .. "</b> has no usable position.", Theme.warn)
+        return
+    end
+
+    -- Check if entity is close to door (500m)
+    local nearD, nameD = checkEntityNear(cf.Position)
+    if nearD then
+        centerWarning(string.format("There is an entity close to the door: %s.", nameD))
         return
     end
 
@@ -2600,11 +2659,9 @@ function confirmMode(name)
         onConfirm = function() activateMode(name) end,
     })
 end
-
 end
 
 local Kill = { on = false, saved = setmetatable({}, { __mode = "k" }), count = 0 }
-
 local setKillOff
 
 do
@@ -2657,7 +2714,6 @@ task.spawn(function()
         task.wait(0.25)
     end
 end)
-
 end
 
 local setJumpBlock
@@ -2712,7 +2768,6 @@ function setJumpBlock(v)
         Jump.saved = setmetatable({}, { __mode = "k" })
     end
 end
-
 end
 
 -- Auto Pick Freddies Plush
@@ -2757,7 +2812,7 @@ task.spawn(function()
 end)
 end
 
--- Player ESP: "Display (@Name) | 626m | 100hp"
+-- Player ESP
 local setPlayerESP, teleportToRandomPlayer
 
 do
@@ -2836,6 +2891,14 @@ function teleportToRandomPlayer()
         notify("Character not loaded or currently dead.", Theme.warn)
         return
     end
+
+    -- Check if entity is close to player (500m)
+    local nearP, nameP = checkEntityNear(hrp.Position)
+    if nearP then
+        centerWarning(string.format("There is an entity close to the player: %s.", nameP))
+        return
+    end
+
     local options = {}
     for _, plr in ipairs(Players:GetPlayers()) do
         if plr ~= LocalPlayer then
@@ -2848,11 +2911,19 @@ function teleportToRandomPlayer()
         return
     end
     local pick = options[math.random(1, #options)]
-    local pos = pick.root.Position - pick.root.CFrame.LookVector * 4 + Vector3.new(0, 1, 0)
+    local targetPos = pick.root.Position - pick.root.CFrame.LookVector * 4 + Vector3.new(0, 1, 0)
+
+    -- Check if entity is close to destination player (500m)
+    local nearD, nameD = checkEntityNear(targetPos)
+    if nearD then
+        centerWarning(string.format("There is an entity close to the door: %s.", nameD))
+        return
+    end
+
     hrp.AssemblyLinearVelocity = Vector3.zero
     hrp.AssemblyAngularVelocity = Vector3.zero
     local cur = hrp.CFrame
-    hrp.CFrame = CFrame.new(pos) * (cur - cur.Position)
+    hrp.CFrame = CFrame.new(targetPos) * (cur - cur.Position)
     notify(string.format("Teleported to <b>%s (@%s)</b>.", esc(pick.plr.DisplayName), esc(pick.plr.Name)), Theme.on, 2.5)
 end
 end
@@ -2958,7 +3029,7 @@ P = pages.Player
 sectionLabel(P, "Movement")
 makeInput(P, "Change Speed", "Number (empty = reset)", applySpeed)
 makeToggle(P, "Noclip", "Walk through walls", setNoclip)
-makeToggle(P, "Anti-Void", "Invisible floor if you fall", setAntiVoid)
+makeToggle(P, "Anti-Void", "Invisible floor if you fall (Y <= 2)", setAntiVoid)
 
 sectionLabel(P, "Players")
 makeToggle(P, "Enable ESP Players", "Name (@user) | distance | health", setPlayerESP)
@@ -2981,28 +3052,90 @@ for _, m in ipairs(MODES) do
 end
 makeParagraph(P, "Entities <b>1-A</b>, <b>1-B</b> and <b>1-G</b> are ignored by alerts, auto-hide, tracker and spectate.", 54)
 
--- Chat tab: Server / Global / Alerts
+-- Chat tab & Roblox chat takeover implementation
 local Chat = {
     DB = "https://rld-chat-8b60b-default-rtdb.firebaseio.com/",
     HOST = "Web_Julio9",
     BAD_WORDS = { "porra", "caralho", "puta", "fdp", "merda", "fuck", "shit", "bitch" },
     running = false,
-    channel = "Server", -- "Server" | "Global" | "Alerts"
+    channel = "Server",
     channels = {},
     MAX_STRIKES = 20,
     SPAM_GAP = 1,
     KICK_MSG = "You have been kicked from this script, try not to swear again.",
     strikes = 0, spam = 0, lastAttempt = 0,
+    muteUntil = 0,
+    violations = 0,
 }
 Chat.isHost = (LocalPlayer.Name == Chat.HOST)
 Chat.http = (syn and syn.request) or http_request or request
     or (http and http.request) or (fluxus and fluxus.request)
+
+-- Disable Roblox chat in CoreGui & TextChatService
+local oldRobloxChatEnabled = true
+pcall(function()
+    oldRobloxChatEnabled = StarterGui:GetCoreGuiEnabled(Enum.CoreGuiType.Chat)
+    StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Chat, false)
+    if TextChatService then
+        TextChatService.ChatWindowConfiguration.Enabled = false
+        TextChatService.ChatInputBarConfiguration.Enabled = false
+    end
+end)
+
+-- Floating Script Chat button where Roblox chat was
+local floatChatBtn = create("TextButton", {
+    Name = "FloatingChatButton",
+    AnchorPoint = Vector2.new(0, 1),
+    Position = UDim2.new(0, 20, 1, -20),
+    Size = UDim2.fromOffset(46, 46),
+    BackgroundColor3 = Theme.card,
+    AutoButtonColor = false,
+    BorderSizePixel = 0,
+    ZIndex = 998,
+    Parent = ScreenGui,
+}, { corner(23), stroke(Theme.stroke, 1, 0) })
+local floatChatIcon = makeIcon("chat", floatChatBtn, 22, Theme.text)
+tapFx(floatChatBtn, Theme.card, Theme.cardHi)
+
+floatChatBtn.MouseButton1Click:Connect(function()
+    setOpen(true)
+    selectTab("Chat")
+end)
 
 do
 local HttpService = game:GetService("HttpService")
 
 P = pages.Chat
 sectionLabel(P, "Chat")
+
+-- Owner button: Delete all messages
+if Chat.isHost then
+    local delAllRow = makeButton(P, "Delete All Messages", "Clear all chat history from database", function()
+        Dialog.show({
+            title = "Delete All Messages",
+            body = "Are you sure you want to delete all messages from database?",
+            bar = Theme.danger, confirmText = "Delete All", confirmBg = Theme.danger, confirmFg = WHITE,
+            onConfirm = function()
+                for _, chName in ipairs({ "Server", "Global" }) do
+                    local st = Chat.channels[chName]
+                    if st then
+                        st.msgs = {}
+                        st.order = {}
+                        st.dbIds = {}
+                        local sc = scrolls[chName]
+                        if sc then
+                            for _, child in ipairs(sc:GetChildren()) do
+                                if child:IsA("Frame") then child:Destroy() end
+                            end
+                        end
+                        task.spawn(Chat.req, chName, "DELETE", "/messages")
+                    end
+                end
+                notify("All messages deleted.", Theme.on, 2.5)
+            end,
+        })
+    end, true)
+end
 
 -- Channel switcher: Server | Global | Alerts
 local subRow = baseRow(P, 38)
@@ -3039,7 +3172,7 @@ local function setChatUsers(text, tone)
 end
 
 local chatRow = baseRow(P, 166)
-local scrolls = {}
+scrolls = {}
 for _, chName in ipairs(CHANNEL_LIST) do
     scrolls[chName] = create("ScrollingFrame", {
         Name = chName .. "Scroll",
@@ -3144,7 +3277,6 @@ function Chat.isBad(text)
     return false
 end
 
--- Speech bubble above a player's head (Server chat only)
 Chat.bubbles = {}
 function Chat.bubble(plr, text)
     local char = plr and plr.Character
@@ -3185,7 +3317,6 @@ function Chat.bubble(plr, text)
     end)
 end
 
--- Firebase REST helper per channel
 function Chat.req(chName, method, path, body, query)
     if not Chat.http then return nil, 0 end
     local st = Chat.channels[chName]
@@ -3255,7 +3386,7 @@ function Chat.addRow(chName, id, richText, deletable)
     if Chat.channel == chName then scrollDown(chName) end
 end
 
--- Local Alerts tab entry: [👑 Freeman]: (static rainbow) + {entity_name} (entity color) + spawned, hide! (red)
+-- ALERTS CHAT TAB (Max 5 alerts, deletes oldest when a new one appears)
 local RAINBOW_SEQ = ColorSequence.new({
     ColorSequenceKeypoint.new(0.00, Color3.fromRGB(255, 65, 65)),
     ColorSequenceKeypoint.new(0.18, Color3.fromRGB(255, 165, 45)),
@@ -3284,7 +3415,6 @@ addChatAlert = function(entityName, color)
         }),
     })
 
-    -- [👑 Freeman]: with static rainbow UIGradient
     local prefixLbl = label({
         Text = "[👑 Freeman]: ",
         TextSize = 12, Font = FONT_BOLD, TextColor3 = WHITE,
@@ -3293,7 +3423,6 @@ addChatAlert = function(entityName, color)
     })
     create("UIGradient", { Color = RAINBOW_SEQ, Rotation = 0, Parent = prefixLbl })
 
-    -- {entity_name} in entity color + " spawned, hide!" in red
     local bodyLbl = label({
         Text = "<b>" .. richName(entityName, color) .. '</b> <font color="#E54D52">spawned, hide!</font>',
         RichText = true, TextSize = 12, Font = FONT_BOLD,
@@ -3304,12 +3433,15 @@ addChatAlert = function(entityName, color)
 
     table.insert(st.order, id)
     st.msgs[id] = { frame = frame }
-    while #st.order > 150 do
-        local old = table.remove(st.order, 1)
-        local m = st.msgs[old]
-        st.msgs[old] = nil
+
+    -- Keep max 5 alerts in chat tab, remove oldest
+    while #st.order > 5 do
+        local oldId = table.remove(st.order, 1)
+        local m = st.msgs[oldId]
+        st.msgs[oldId] = nil
         if m and m.frame and m.frame.Parent then m.frame:Destroy() end
     end
+
     if Chat.channel == "Alerts" then scrollDown("Alerts") end
 end
 
@@ -3329,12 +3461,20 @@ function Chat.upsert(chName, id, rec)
     local plr = Players:GetPlayerByUserId(uid)
     local name = plr and plr.Name or tostring(rec.u or "?")
     local display = plr and plr.DisplayName or tostring(rec.d or "")
-    local who = (display ~= "" and display ~= name) and (display .. " (@" .. name .. ")") or name
+    local who = (display ~= "" and display ~= name) and display or name
 
     st.dbIds[id] = true
     local own = uid == LocalPlayer.UserId
-    local isOwner = (name == Chat.HOST) and (chName == "Global" or plr ~= nil)
-    local tag = isOwner and '<font color="#FFD966"><b>👑 Owner</b></font>  ' or '<font color="#9EA3B8">👤 Member</font>  '
+    local isOwner = (name == Chat.HOST)
+
+    -- Tag colors: OWNER = [OWNER] (rainbow), MEMBER = [MEMBER] (blue)
+    local tag
+    if isOwner then
+        tag = '<font color="#FFD966"><b>[OWNER]</b></font>  '
+    else
+        tag = '<font color="#22D3EE"><b>[MEMBER]</b></font>  '
+    end
+
     Chat.addRow(chName, id, tag .. "<b>" .. esc(who) .. "</b>: " .. esc(text), own or Chat.isHost)
 
     if st.loaded then
@@ -3391,7 +3531,6 @@ function Chat.poll(chName)
 end
 
 function Chat.presence()
-    -- Server-only presence (Global does not show server players)
     Chat.req("Server", "PUT", "/users/" .. LocalPlayer.UserId, { n = LocalPlayer.Name, t = os.time() })
     local data, status = Chat.req("Server", "GET", "/users")
     if status ~= 200 then return end
@@ -3423,8 +3562,13 @@ end
 
 function Chat.send(text)
     if Chat.channel == "Alerts" then return end
-    local targetCh = Chat.channel
+    if os.clock() < Chat.muteUntil then
+        local rem = math.ceil(Chat.muteUntil - os.clock())
+        notify("You are muted for swearing (" .. rem .. "s remaining).", Theme.danger, 3)
+        return
+    end
 
+    local targetCh = Chat.channel
     text = string.gsub(tostring(text or ""), "^%s+", "")
     text = string.gsub(text, "%s+$", "")
     if text == "" then return end
@@ -3443,12 +3587,31 @@ function Chat.send(text)
     local cut = utf8.offset(text, 201)
     if cut then text = string.sub(text, 1, cut - 1) end
 
+    -- Bad word progression: 5 -> 3m mute, 10 -> 10m mute, 15 -> 20m mute, 20 -> kick
     if Chat.isBad(text) then
-        Chat.strikes += 1
-        if Chat.strikes >= Chat.MAX_STRIKES then Chat.kickSelf() return end
-        notify(string.format("Message blocked (bad word) %d/%d.", Chat.strikes, Chat.MAX_STRIKES), Theme.warn, 2.5)
-        return
+        Chat.violations += 1
+        local v = Chat.violations
+        if v == 20 then
+            Chat.kickSelf()
+            return
+        elseif v == 15 then
+            Chat.muteUntil = os.clock() + 1200 -- 20 minutes
+            notify("Swearing limit reached! Muted for 20 minutes.", Theme.danger, 5)
+            return
+        elseif v == 10 then
+            Chat.muteUntil = os.clock() + 600 -- 10 minutes
+            notify("Swearing limit reached! Muted for 10 minutes.", Theme.danger, 5)
+            return
+        elseif v == 5 then
+            Chat.muteUntil = os.clock() + 180 -- 3 minutes
+            notify("Swearing limit reached! Muted for 3 minutes.", Theme.danger, 5)
+            return
+        else
+            notify(string.format("Bad word warning (%d/20). Watch your language!", v), Theme.warn, 2.5)
+            return
+        end
     end
+
     if not Chat.http then
         notify("Executor without <b>request</b>.", Theme.danger, 3)
         return
@@ -3531,6 +3694,14 @@ local function disableUI()
         local h = getHum()
         if h then h.WalkSpeed = Speed.default end
     end
+    -- Restore Roblox chat when unloading script
+    pcall(function()
+        StarterGui:SetCoreGuiEnabled(Enum.CoreGuiType.Chat, oldRobloxChatEnabled)
+        if TextChatService then
+            TextChatService.ChatWindowConfiguration.Enabled = true
+            TextChatService.ChatInputBarConfiguration.Enabled = true
+        end
+    end)
     ScreenGui:Destroy()
 end
 
